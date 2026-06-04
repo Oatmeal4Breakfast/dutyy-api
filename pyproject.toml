@@ -1,0 +1,15 @@
+[project]
+name = "dutyy-api"
+version = "0.1.0"
+description = "web-api for dutyy"
+readme = "README.md"
+authors = [{ name = "Oatmeal4Breakfast", email = "elvin.salcedo17@gmail.com" }]
+requires-python = ">=3.14"
+dependencies = ["fastapi[standard]>=0.136.3", "pydantic-settings>=2.14.1"]
+
+[tool.uv]
+exclude-newer = "1 week"
+
+[build-system]
+requires = ["uv_build>=0.11.18,<0.12.0"]
+build-backend = "uv_build"
