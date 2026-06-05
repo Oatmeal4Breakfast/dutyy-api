@@ -15,7 +15,7 @@ class DutyyStatus(StrEnum):
 class Dutyy:
     title: str
     details: str
-    project_id: str
+    project_id: UUID
     modified_date: datetime
     completed_date: datetime
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
