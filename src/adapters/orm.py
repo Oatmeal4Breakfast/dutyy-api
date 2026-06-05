@@ -31,9 +31,9 @@ dutyy_table = Table(
     Column("title", String, nullable=False),
     Column("details", Text, nullable=True),
     Column("status", Enum(DutyyStatus), nullable=False),
-    Column("created_date", DateTime, nullable=False),
-    Column("modified_date", DateTime, nullable=True),
-    Column("completed_date", DateTime, nullable=True),
+    Column("created_date", DateTime(timezone=True), nullable=False),
+    Column("modified_date", DateTime(timezone=True), nullable=True),
+    Column("completed_date", DateTime(timezone=True), nullable=True),
     Column("project_id", ForeignKey("projects.id"), nullable=False),
     Column("id", UUID, primary_key=True),
 )
@@ -43,8 +43,8 @@ projects_table = Table(
     metadata,
     Column("name", String, nullable=False, unique=True),
     Column("status", Enum(ProjectStatus), nullable=False),
-    Column("created_date", DateTime, nullable=False),
-    Column("completed_date", DateTime, nullable=True),
+    Column("created_date", DateTime(timezone=True), nullable=False),
+    Column("completed_date", DateTime(timezone=True), nullable=True),
     Column("id", UUID, primary_key=True),
 )
 
