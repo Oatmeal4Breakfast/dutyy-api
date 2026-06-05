@@ -23,7 +23,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      ENV_TYPE: development
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      ENV: ${ENV}
     volumes:
       - ./src:/app/src
     depends_on:
