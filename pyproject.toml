@@ -5,11 +5,24 @@ description = "web-api for dutyy"
 readme = "README.md"
 authors = [{ name = "Oatmeal4Breakfast", email = "elvin.salcedo17@gmail.com" }]
 requires-python = ">=3.14"
-dependencies = ["fastapi[standard]>=0.136.3", "pydantic-settings>=2.14.1"]
+dependencies = [
+    "fastapi[standard]>=0.136.3",
+    "psycopg[binary]>=3.3.4",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "sqlalchemy[asyncio]>=2.0.50",
+]
 
 [tool.uv]
 exclude-newer = "1 week"
 
 [build-system]
-requires = ["uv_build>=0.11.18,<0.12.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest==9.0.3", "pytest-anyio>=0.0.0", "pytest-cov>=6.0.0"]
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
