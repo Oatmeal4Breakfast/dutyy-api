@@ -32,5 +32,5 @@ The API will be available at `http://localhost:8000` and the auto-generated docs
 
 ```bash
 uv sync
-uvicorn src.dutyy_api.main:app --reload
+uvicorn src.main:app --reload
 ```
