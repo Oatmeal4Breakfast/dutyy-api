@@ -39,6 +39,7 @@ projects_table = Table(
     Column("status", Enum(ProjectStatus), nullable=False),
     Column("created_date", DateTime(timezone=True), nullable=False),
     Column("completed_date", DateTime(timezone=True), nullable=True),
+    Column("modified_date", DateTime(timezone=True), nullable=True),
     Column("id", UUID, primary_key=True),
 )
 
