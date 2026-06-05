@@ -1,17 +1,9 @@
-from __future__ import annotations
-from enum import StrEnum, auto
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from uuid import UUID, uuid7
 
 from src.domain.dutyy import Dutyy
-
-
-class ProjectStatus(StrEnum):
-    NEW = auto()
-    IN_PROGRESS = auto()
-    COMPLETE = auto()
-    ABANDONED = auto()
+from src.domain.enums import ProjectStatus
 
 
 @dataclass
