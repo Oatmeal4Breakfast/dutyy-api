@@ -21,14 +21,14 @@ class Dutyy:
     id: UUID = field(default_factory=uuid7)
 
     def __post_init__(self) -> None:
-        if not self.title.strip():
-            raise DomainValidationError("Dutyy", ["title cannot be empty"])
-
         norm_title = self.title.strip().lower()
+
+        if norm_title is None:
+            raise DomainValidationError("Dutyy", ["title cannot be empty"])
 
         self.title = norm_title
 
-        if self.details:
+        if isinstance(self.details, str):
             norm_details = self.details.strip()
             self.details = norm_details
 
@@ -66,7 +66,7 @@ class Dutyy:
 
     def update_details(self, details: str) -> None:
         normalized = details.strip()
-        if not normalized:
+        if normalized is None:
             return
         self.details = normalized
         self._touch()
