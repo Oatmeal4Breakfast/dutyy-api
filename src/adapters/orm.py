@@ -1,5 +1,3 @@
-from __future__ import annotations
-from typing import TYPE_CHECKING
 from sqlalchemy.orm import registry, relationship
 from sqlalchemy import (
     String,
@@ -12,14 +10,10 @@ from sqlalchemy import (
     Column,
     MetaData,
 )
+from src.domain.enums import DutyyStatus, ProjectStatus
+from src.domain.dutyy import Dutyy
+from src.domain.project import Project
 
-from src.domain.dutyy import DutyyStatus, Dutyy
-from src.domain.project import ProjectStatus, Project
-
-if TYPE_CHECKING:
-    from datetime import datetime
-    from typing import Any
-    from uuid import UUID
 
 mapper_registry = registry()
 metadata = MetaData()
