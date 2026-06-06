@@ -23,7 +23,7 @@ class Dutyy:
     def __post_init__(self) -> None:
         norm_title = self.title.strip().lower()
 
-        if norm_title is None:
+        if not norm_title:
             raise DomainValidationError("Dutyy", ["title cannot be empty"])
 
         self.title = norm_title
@@ -38,31 +38,48 @@ class Dutyy:
     def _touch(self) -> None:
         self.modified_date = datetime.now(UTC)
 
-    def update_title(self, new_title: str) -> None:
-        normalized = new_title.strip().lower()
+    def _mark_complete(self) -> None:
+        self.status = DutyyStatus.COMPLETE
+        self._touch()
+        self.completed_date = datetime.now(UTC)
+        self.events.append(
+            DutyyCompleted(
+                id=self.id,
+                created_date=self.created_date,
+                completed_date=self.completed_date,
+            )
+        )
+
+    def _mark_in_progress(self) -> None:
+        self.status = DutyyStatus.IN_PROGRESS
+        self._touch()
+
+    def update_title(self, title: str) -> None:
+        normalized = title.strip().lower()
         if not normalized:
             raise DomainValidationError("Dutyy", ["title cannot be empty"])
         self.title: str = normalized
         self._touch()
 
-    def update_project_id(self, new_project: UUID) -> None:
-        if new_project == self.project_id:
+    def update_project_id(self, project: UUID) -> None:
+        if project == self.project_id:
             return
-        self.project_id = new_project
+        self.project_id = project
         self._touch()
 
-    def update_status(self, new_status: DutyyStatus) -> None:
-        if new_status == self.status:
+    def update_status(self, status: DutyyStatus) -> None:
+        if status == self.status:
             return
 
-        if new_status == DutyyStatus.COMPLETE:
-            self.completed_date = datetime.now(UTC)
-            self.events.append(
-                DutyyCompleted(self.id, self.created_date, self.completed_date)
-            )
-
-        self.status = new_status
-        self._touch()
+        match status:
+            case DutyyStatus.IN_PROGRESS:
+                self._mark_in_progress()
+            case DutyyStatus.COMPLETE:
+                self._mark_complete()
+            case _:
+                raise DomainValidationError(
+                    "Dutyy", [f"{status} is not a valid transition"]
+                )
 
     def update_details(self, details: str) -> None:
         normalized = details.strip()

@@ -29,7 +29,7 @@ def test_create_dutyy_empty_title_fails() -> None:
 
 def test_update_title_success() -> None:
     dutyy = make_dutyy()
-    dutyy.update_title(new_title="Updated Title ")
+    dutyy.update_title(title="Updated Title ")
 
     assert dutyy.title == "updated title"
     assert dutyy.modified_date is not None
