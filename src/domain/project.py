@@ -5,7 +5,12 @@ from uuid import UUID, uuid7
 
 from src.domain.dutyy import Dutyy
 from src.domain.enums import ProjectStatus
-from src.domain.exceptions import DomainValidationError
+from src.domain.exceptions import (
+    DomainValidationError,
+    DutyyAssignedError,
+    DutyyNotAssignedError,
+)
+from src.domain.events import ProjectCompleted, DutyyAdded, DutyyRemoved
 
 
 @dataclass
@@ -13,6 +18,7 @@ class Project:
     name: str
     modified_date: datetime | None = None
     completed_date: datetime | None = None
+    events: list = field(default_factory=list, init=False, repr=False)
     status: ProjectStatus = field(default=ProjectStatus.NEW)
     dutyys: list[Dutyy] = field(default_factory=list)
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -21,16 +27,78 @@ class Project:
     def __post_init__(self) -> None:
         norm_name = self.name.strip().lower()
 
-        if norm_name is None:
+        if not norm_name:
             raise DomainValidationError("Project", ["name cannot be empty"])
 
         self.name = norm_name
 
+    def _touch(self) -> datetime:
+        self.modified_date = datetime.now(UTC)
+        return self.modified_date
+
+    def _mark_in_progress(self) -> None:
+        self.status = ProjectStatus.IN_PROGRESS
+        self._touch()
+
+    def _mark_complete(self) -> None:
+        self.status = ProjectStatus.COMPLETE
+        self._touch()
+        self.completed_date = datetime.now(UTC)
+        self.events.append(
+            ProjectCompleted(self.id, self.created_date, self.completed_date)
+        )
+
+    def _mark_abandoned(self) -> None:
+        self.status = ProjectStatus.ABANDONED
+        self._touch()
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
-    def update_name(self, new_name: str) -> None:
-        norm_name = new_name.strip().lower()
-        if norm_name is None:
-            return
+    def update_name(self, name: str) -> None:
+        norm_name = name.strip().lower()
+        if not norm_name:
+            raise DomainValidationError("Project", ["name cannot be empty"])
         self.name = norm_name
+        self._touch()
+
+    def update_status(self, status: ProjectStatus) -> None:
+        if status == self.status:
+            return
+        match status:
+            case ProjectStatus.IN_PROGRESS:
+                self._mark_in_progress()
+            case ProjectStatus.ABANDONED:
+                self._mark_abandoned()
+            case ProjectStatus.COMPLETE:
+                self._mark_complete()
+            case _:
+                raise DomainValidationError(
+                    "Project", [f"{status} is not a valid transition"]
+                )
+
+    def add_dutyy(self, dutyy: Dutyy) -> None:
+        for d in self.dutyys:
+            if d.id == dutyy.id:
+                raise DutyyAssignedError(id=dutyy.id)
+
+        self.dutyys.append(dutyy)
+        mod_date = self._touch()
+        self.events.append(
+            DutyyAdded(dutyy_id=dutyy.id, project_id=self.id, modified_date=mod_date)
+        )
+
+    def remove_dutyy(self, dutyy: Dutyy) -> None:
+        for idx, d in enumerate(self.dutyys):
+            if d.id == dutyy.id:
+                del self.dutyys[idx]
+                mod_date = self._touch()
+                self.events.append(
+                    DutyyRemoved(
+                        dutyy_id=dutyy.id,
+                        project_id=self.id,
+                        modified_date=mod_date,
+                    )
+                )
+                return
+        raise DutyyNotAssignedError(dutyy.id)
