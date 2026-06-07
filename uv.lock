@@ -148,6 +148,7 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pytest-cov" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
@@ -166,6 +167,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.50" },
 ]
 
