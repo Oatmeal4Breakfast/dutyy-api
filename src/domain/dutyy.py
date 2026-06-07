@@ -83,7 +83,7 @@ class Dutyy:
 
     def update_details(self, details: str) -> None:
         normalized = details.strip()
-        if normalized is None:
+        if not normalized:
             return
         self.details = normalized
         self._touch()
