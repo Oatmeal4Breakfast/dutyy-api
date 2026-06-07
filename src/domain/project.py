@@ -88,7 +88,7 @@ class Project:
             DutyyAdded(dutyy_id=dutyy.id, project_id=self.id, modified_date=mod_date)
         )
 
-    def remove_dutyy(self, dutyy: Dutyy) -> None:
+    def delete_dutyy(self, dutyy: Dutyy) -> None:
         for idx, d in enumerate(self.dutyys):
             if d.id == dutyy.id:
                 del self.dutyys[idx]
