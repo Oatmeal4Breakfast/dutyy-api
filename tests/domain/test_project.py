@@ -1,4 +1,3 @@
-from dns.ttl import make
 import pytest
 
 from typing import Any
@@ -9,6 +8,7 @@ from datetime import timedelta, datetime, UTC
 from src.domain.project import Project
 from src.domain.dutyy import Dutyy
 from src.domain.enums import ProjectStatus
+from src.domain.events import ProjectCompleted, DutyyAdded, DutyyRemoved
 from src.domain.exceptions import (
     DomainValidationError,
     DutyyAssignedError,
@@ -106,6 +106,23 @@ def test_update_status_complete() -> None:
     time_diff = datetime.now(UTC) - project.completed_date
     assert time_diff < timedelta(seconds=1)
 
+    assert len(project.events) == 1
+    assert isinstance(project.events[0], ProjectCompleted)
+
+
+def test_update_status_abandoned() -> None:
+    project = make_project()
+
+    project.update_status(ProjectStatus.ABANDONED)
+
+    assert project.status == ProjectStatus.ABANDONED
+    assert project.modified_date is not None
+
+    time_diff = datetime.now(UTC) - project.modified_date
+    assert time_diff < timedelta(seconds=1)
+
+    assert len(project.events) == 0
+
 
 def test_add_dutyy_success() -> None:
     project = make_project()
@@ -117,6 +134,8 @@ def test_add_dutyy_success() -> None:
     project.add_dutyy(dutyy)
 
     assert len(project.dutyys) == 1
+    assert len(project.events) == 1
+    assert isinstance(project.events[0], DutyyAdded)
 
 
 def test_add_same_dutyy_fails() -> None:
@@ -142,6 +161,7 @@ def test_delete_dutyy_sucess() -> None:
     project.delete_dutyy(dutyy)
 
     assert len(project.dutyys) == 0
+    assert any(isinstance(e, DutyyRemoved) for e in project.events)
 
 
 def test_delete_dutyy_fails() -> None:

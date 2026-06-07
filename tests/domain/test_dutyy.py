@@ -5,6 +5,7 @@ from datetime import datetime, UTC, timedelta
 
 from src.domain.dutyy import Dutyy
 from src.domain.enums import DutyyStatus
+from src.domain.events import DutyyCompleted
 from src.domain.exceptions import DomainValidationError
 
 
@@ -30,6 +31,11 @@ def test_create_dutyy_empty_title_fails() -> None:
         make_dutyy(title="")
 
 
+def test_create_dutyy_whitespace_title_fails() -> None:
+    with pytest.raises(DomainValidationError):
+        make_dutyy(title="   ")
+
+
 def test_update_title_success() -> None:
     dutyy = make_dutyy()
     dutyy.update_title(title="Updated Title ")
@@ -48,6 +54,12 @@ def test_update_title_fails_on_empty_string() -> None:
         dutyy.update_title("")
 
 
+def test_update_title_whitespace_fails() -> None:
+    dutyy = make_dutyy()
+    with pytest.raises(DomainValidationError):
+        dutyy.update_title("   ")
+
+
 def test_update_project_id_success() -> None:
     dutyy = make_dutyy()
 
@@ -60,6 +72,14 @@ def test_update_project_id_success() -> None:
     assert time_diff < timedelta(seconds=1)
 
     assert dutyy.project_id == new_uuid
+
+
+def test_update_project_id_idempotent() -> None:
+    dutyy = make_dutyy()
+    same_uuid = UUID("12345678-1234-5678-1234-567812345678")
+    dutyy.update_project_id(same_uuid)
+
+    assert dutyy.modified_date is None
 
 
 def test_update_status_to_in_progress() -> None:
@@ -94,6 +114,7 @@ def test_update_status_to_complete() -> None:
     assert time_diff < timedelta(seconds=1)
 
     assert len(dutyy.events) == 1
+    assert isinstance(dutyy.events[0], DutyyCompleted)
 
 
 def test_update_status_idempotent() -> None:
