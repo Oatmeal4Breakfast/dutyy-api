@@ -12,3 +12,9 @@ class ProjectStatus(StrEnum):
     IN_PROGRESS = auto()
     COMPLETE = auto()
     ABANDONED = auto()
+
+
+class UserStatus(StrEnum):
+    ACTIVE = auto()
+    INACTIVE = auto()
+    BLOCKED = auto()
