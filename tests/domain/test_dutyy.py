@@ -1,6 +1,7 @@
 import pytest
 from typing import Any
 from uuid import UUID
+from datetime import datetime, UTC, timedelta
 
 from src.domain.dutyy import Dutyy
 from src.domain.enums import DutyyStatus
@@ -18,6 +19,8 @@ def make_dutyy(**kwargs) -> Dutyy:
 def test_create_dutyy_success() -> None:
     dutyy = make_dutyy()
 
+    time_diff = datetime.now(UTC) - dutyy.created_date
+    assert time_diff < timedelta(seconds=1)
     assert isinstance(dutyy, Dutyy)
     assert dutyy.title == "test dutyy"
 
@@ -31,8 +34,12 @@ def test_update_title_success() -> None:
     dutyy = make_dutyy()
     dutyy.update_title(title="Updated Title ")
 
-    assert dutyy.title == "updated title"
     assert dutyy.modified_date is not None
+
+    time_diff = datetime.now(UTC) - dutyy.modified_date
+    assert time_diff < timedelta(seconds=1)
+
+    assert dutyy.title == "updated title"
 
 
 def test_update_title_fails_on_empty_string() -> None:
@@ -47,8 +54,12 @@ def test_update_project_id_success() -> None:
     new_uuid = UUID("12345678-1234-5678-1234-567812345679")
     dutyy.update_project_id(new_uuid)
 
-    assert dutyy.project_id == new_uuid
     assert dutyy.modified_date is not None
+
+    time_diff = datetime.now(UTC) - dutyy.modified_date
+    assert time_diff < timedelta(seconds=1)
+
+    assert dutyy.project_id == new_uuid
 
 
 def test_update_status_to_in_progress() -> None:
@@ -58,8 +69,12 @@ def test_update_status_to_in_progress() -> None:
 
     dutyy.update_status(DutyyStatus.IN_PROGRESS)
 
-    assert dutyy.status == DutyyStatus.IN_PROGRESS
     assert dutyy.modified_date is not None
+
+    time_diff = datetime.now(UTC) - dutyy.modified_date
+    assert time_diff < timedelta(seconds=1)
+
+    assert dutyy.status == DutyyStatus.IN_PROGRESS
     assert dutyy.completed_date is None
 
 
@@ -72,8 +87,34 @@ def test_update_status_to_complete() -> None:
 
     assert dutyy.status == DutyyStatus.COMPLETE
     assert dutyy.modified_date is not None
+
     assert dutyy.completed_date is not None
+
+    time_diff = datetime.now(UTC) - dutyy.completed_date
+    assert time_diff < timedelta(seconds=1)
+
     assert len(dutyy.events) == 1
+
+
+def test_update_status_idempotent() -> None:
+    dutyy = make_dutyy()
+
+    assert dutyy.status == DutyyStatus.NEW
+
+    dutyy.update_status(DutyyStatus.NEW)
+
+    assert dutyy.modified_date is None
+
+
+def test_update_status_not_reversable() -> None:
+    dutyy = make_dutyy()
+
+    assert dutyy.status == DutyyStatus.NEW
+
+    dutyy.update_status(DutyyStatus.IN_PROGRESS)
+
+    with pytest.raises(DomainValidationError):
+        dutyy.update_status(DutyyStatus.NEW)
 
 
 def test_update_details_not_none() -> None:
@@ -85,3 +126,6 @@ def test_update_details_not_none() -> None:
 
     assert dutyy.details == "Test test test"
     assert dutyy.modified_date is not None
+
+    time_diff = datetime.now(UTC) - dutyy.modified_date
+    assert time_diff < timedelta(seconds=1)
