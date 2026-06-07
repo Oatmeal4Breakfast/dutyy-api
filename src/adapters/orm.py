@@ -1,3 +1,4 @@
+from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import registry, relationship
 from sqlalchemy import (
     String,
@@ -10,9 +11,10 @@ from sqlalchemy import (
     Column,
     MetaData,
 )
-from src.domain.enums import DutyyStatus, ProjectStatus
+from src.domain.enums import DutyyStatus, ProjectStatus, UserStatus
 from src.domain.dutyy import Dutyy
 from src.domain.project import Project
+from src.domain.user import User
 
 
 mapper_registry = registry()
@@ -43,7 +45,28 @@ projects_table = Table(
     Column("id", UUID, primary_key=True),
 )
 
+users_table = Table(
+    "users",
+    metadata,
+    Column("first_name", String, nullable=False),
+    Column("last_name", String, nullable=False),
+    Column("email", CITEXT, nullable=False, unique=True),
+    Column("created_date", DateTime(timezone=True), nullable=False),
+    Column("last_login", DateTime(timezone=True), nullable=True),
+    Column("hashed_password", String, nullable=True),
+    Column("modified_date", DateTime(timezone=True), nullable=True),
+    Column("status", Enum(UserStatus), nullable=False),
+    Column("id", UUID, primary_key=True),
+)
+
+project_user_table = Table(
+    "project_user",
+    metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("project_id", ForeignKey("projects.id"), primary_key=True),
+)
 mapper_registry.map_imperatively(Dutyy, dutyy_table)
 mapper_registry.map_imperatively(
     Project, projects_table, properties={"dutyys": relationship(Dutyy, lazy="raise")}
 )
+mapper_registry.map_imperatively(User, users_table)
