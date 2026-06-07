@@ -6,7 +6,6 @@ from email_validator import validate_email, EmailNotValidError
 
 from src.domain.enums import UserStatus
 from src.domain.exceptions import DomainValidationError
-from src.domain.events import UserPasswordReset
 
 
 @dataclass
@@ -103,4 +102,3 @@ class User:
     def update_hashed_password(self, hashed_password: str) -> None:
         self.hashed_password = hashed_password
         mod_date = self._touch()
-        self.events.append(UserPasswordReset(user_id=self.id, request_date=mod_date))
