@@ -1,7 +1,7 @@
 import pytest
 
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid7
 from datetime import timedelta, datetime, UTC
 
 
@@ -16,8 +16,11 @@ from src.domain.exceptions import (
 )
 
 
+owner_id = uuid7()
+
+
 def make_project(**kwargs) -> Project:
-    defaults: dict[str, Any] = {"name": "test project "}
+    defaults: dict[str, Any] = {"name": "test project ", "owner_id": owner_id}
     return Project(**{**defaults, **kwargs})
 
 
@@ -169,3 +172,21 @@ def test_delete_dutyy_fails() -> None:
     with pytest.raises(DutyyNotAssignedError):
         dutyy = make_dutyy(project_id=project.id)
         project.delete_dutyy(dutyy)
+
+
+def test_transfer_ownership_success() -> None:
+    project = make_project()
+
+    new_owner = uuid7()
+
+    project.transfer_ownership(new_owner)
+
+    assert project.owner_id == new_owner
+
+
+def test_transfer_ownership_idempotent() -> None:
+    project = make_project()
+
+    project.transfer_ownership(owner_id)
+
+    assert project.modified_date is None

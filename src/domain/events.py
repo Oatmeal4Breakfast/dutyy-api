@@ -37,3 +37,9 @@ class DutyyRemoved(Event):
     dutyy_id: UUID
     project_id: UUID
     modified_date: datetime
+
+
+@dataclass(frozen=True)
+class OwnershipTransferred:
+    project_id: UUID
+    new_owner: UUID

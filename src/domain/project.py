@@ -10,12 +10,18 @@ from src.domain.exceptions import (
     DutyyAssignedError,
     DutyyNotAssignedError,
 )
-from src.domain.events import ProjectCompleted, DutyyAdded, DutyyRemoved
+from src.domain.events import (
+    ProjectCompleted,
+    DutyyAdded,
+    DutyyRemoved,
+    OwnershipTransferred,
+)
 
 
 @dataclass
 class Project:
     name: str
+    owner_id: UUID
     modified_date: datetime | None = None
     completed_date: datetime | None = None
     events: list = field(default_factory=list, init=False, repr=False)
@@ -102,3 +108,10 @@ class Project:
                 )
                 return
         raise DutyyNotAssignedError(dutyy.id)
+
+    def transfer_ownership(self, owner_id: UUID) -> None:
+        if self.owner_id == owner_id:
+            return
+        self.owner_id = owner_id
+        self._touch()
+        self.events.append(OwnershipTransferred(project_id=self.id, new_owner=owner_id))

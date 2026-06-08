@@ -38,6 +38,7 @@ projects_table = Table(
     "projects",
     metadata,
     Column("name", String, nullable=False, unique=True),
+    Column("owner_id", UUID, nullable=False, unique=True),
     Column("status", Enum(ProjectStatus), nullable=False),
     Column("created_date", DateTime(timezone=True), nullable=False),
     Column("completed_date", DateTime(timezone=True), nullable=True),
