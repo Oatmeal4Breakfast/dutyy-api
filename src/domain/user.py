@@ -13,7 +13,7 @@ class User:
     first_name: str
     last_name: str
     email: str
-    hashed_password: str | None = None
+    password_hash: str | None = None
     last_login: datetime | None = None
     modified_date: datetime | None = None
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -99,6 +99,6 @@ class User:
                     "User", [f"{status} is not a valid transition"]
                 )
 
-    def update_hashed_password(self, hashed_password: str) -> None:
-        self.hashed_password = hashed_password
-        mod_date = self._touch()
+    def update_password_hash(self, password_hash: str) -> None:
+        self.password_hash = password_hash
+        self._touch()

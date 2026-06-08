@@ -178,14 +178,14 @@ def test_update_status_reversible() -> None:
     assert user.status == UserStatus.ACTIVE
 
 
-def test_update_hashed_password_success() -> None:
+def test_update_password_hash_success() -> None:
     user = make_user()
 
-    assert user.hashed_password is None
+    assert user.password_hash is None
 
-    user.update_hashed_password("hashed_value_abc123")
+    user.update_password_hash("hashed_value_abc123")
 
-    assert user.hashed_password == "hashed_value_abc123"
+    assert user.password_hash == "hashed_value_abc123"
     assert user.modified_date is not None
 
     time_diff = datetime.now(UTC) - user.modified_date
