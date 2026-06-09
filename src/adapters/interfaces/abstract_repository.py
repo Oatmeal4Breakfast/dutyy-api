@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class AbstractRepository[T](ABC):
     @abstractmethod
-    async def get(self) -> list[T]:
+    async def get_all(self) -> list[T]:
         raise NotImplementedError
 
     @abstractmethod
