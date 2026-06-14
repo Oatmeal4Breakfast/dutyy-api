@@ -31,7 +31,7 @@ dutyy_table = Table(
     Column("created_date", DateTime(timezone=True), nullable=False),
     Column("modified_date", DateTime(timezone=True), nullable=True),
     Column("completed_date", DateTime(timezone=True), nullable=True),
-    Column("project_id", ForeignKey("projects.id"), nullable=False),
+    Column("project_id", ForeignKey("projects.id"), nullable=False, index=True),
     Column("id", UUID, primary_key=True),
 )
 
@@ -64,7 +64,7 @@ users_table = Table(
 api_key_table = Table(
     "api_keys",
     metadata,
-    Column("user_id", ForeignKey("users.id"), nullable=False),
+    Column("user_id", ForeignKey("users.id"), nullable=False, index=True),
     Column("key_hash", String, nullable=False),
     Column("name", String, nullable=False),
     Column("last_used", DateTime(timezone=True), nullable=True),
