@@ -8,8 +8,8 @@ from sqlalchemy import Select, update, delete
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.adapters.interfaces.abstract_repository import AbstractRepository
-from src.adapters.orm import users_table
+from src.repository.abstract_repository import AbstractRepository
+from src.db.orm import users_table
 from src.domain.user import User
 from src.logger import get_logger
 
@@ -21,7 +21,7 @@ class UserRepo(AbstractRepository):
         self._session = session
 
     async def add(self, entity: User) -> None:
-        logger.debug(event="user_added", user_id=entity.id, user_name=entity.name)
+        logger.debug(event="user_added", user_id=entity.id, user_name=entity.full_name)
 
         self._session.add(entity)
 
@@ -31,7 +31,7 @@ class UserRepo(AbstractRepository):
             logger.error(
                 event="user_added_conflict",
                 user_id=entity.id,
-                user_name=entity.name,
+                user_name=entity.full_name,
             )
             raise
         except OperationalError:

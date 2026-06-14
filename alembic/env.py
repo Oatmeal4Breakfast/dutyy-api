@@ -5,9 +5,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from src.adapters.orm import metadata
-from src.domain.dutyy import Dutyy
-from src.domain.project import Project
+from src.db.orm import metadata
 from src.config import Config
 
 # this is the Alembic Config object, which provides
