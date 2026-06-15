@@ -12,6 +12,7 @@ dependencies = [
     "psycopg[binary]>=3.3.4",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.1",
+    "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
     "sqlalchemy[asyncio]>=2.0.50",
     "structlog>=25.5.0",
@@ -25,8 +26,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest==9.0.3", "pytest-anyio>=0.0.0", "pytest-cov>=6.0.0"]
+dev = ["pytest>=9.0.3", "pytest-asyncio>=0.25.0", "pytest-cov>=6.0.0"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (require a running database)",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
