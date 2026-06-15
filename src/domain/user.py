@@ -41,7 +41,9 @@ class User:
             raise DomainValidationError("User", [f"Invalid email: {e}"])
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        data.pop("events", None)
+        return data
 
     def _touch(self) -> datetime:
         self.modified_date = datetime.now(UTC)
