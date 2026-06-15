@@ -6,7 +6,7 @@ from enum import StrEnum, auto
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import update, delete, select
 
-from src.repository.abstract_repository import AbstractRepository
+from src.repository.abstract_repository import AbstractRepository, Operation
 from src.db.orm import users_table
 from src.domain.user import User
 from src.logger import get_logger
@@ -44,7 +44,7 @@ class UserRepo(AbstractRepository[User]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op="user_get")
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -60,7 +60,7 @@ class UserRepo(AbstractRepository[User]):
             logger.error(event=UserRepoErrorEvents.USER_DELETE_ERROR, user_id=entity.id)
             raise
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op="user_delete")
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.DELETE)
             raise
 
     async def add(self, entity: User) -> None:
@@ -76,7 +76,7 @@ class UserRepo(AbstractRepository[User]):
             )
             raise
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op="user_add")
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.ADD)
             raise
 
     async def update(self, entity: User) -> None:
@@ -89,7 +89,7 @@ class UserRepo(AbstractRepository[User]):
             logger.error(event=UserRepoErrorEvents.USER_UPDATE_ERROR, user_id=entity.id)
             raise
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op="user_update")
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
 
     async def get_by_id(self, user_id: UUID) -> User | None:
@@ -100,7 +100,7 @@ class UserRepo(AbstractRepository[User]):
         try:
             result: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op="user_get_by_id")
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         row: RowMapping | None = result.mappings().one_or_none()

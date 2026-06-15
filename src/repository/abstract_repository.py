@@ -1,4 +1,12 @@
 from abc import ABC, abstractmethod
+from enum import StrEnum, auto
+
+
+class Operation(StrEnum):
+    GET = auto()
+    UPDATE = auto()
+    ADD = auto()
+    DELETE = auto()
 
 
 class AbstractRepository[T](ABC):
