@@ -54,12 +54,6 @@ def test_create_api_key_whitespace_name_fails() -> None:
         make_api_key(name="   ")
 
 
-def test_api_key_is_immutable() -> None:
-    api_key = make_api_key()
-    with pytest.raises(Exception):
-        api_key.name = "new name"  # type: ignore[misc]
-
-
 def test_api_key_unique_ids() -> None:
     key_one = make_api_key()
     key_two = make_api_key()

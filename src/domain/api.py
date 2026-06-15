@@ -6,7 +6,7 @@ from dataclasses import dataclass, field, asdict
 from src.domain.exceptions import DomainValidationError
 
 
-@dataclass(frozen=True)
+@dataclass
 class APIKey:
     user_id: UUID
     key_hash: str
@@ -25,8 +25,8 @@ class APIKey:
         if not norm_name:
             raise DomainValidationError("APIKey", ["name cannot be empty"])
 
-        object.__setattr__(self, "key_hash", norm_hash)
-        object.__setattr__(self, "name", norm_name)
+        self.key_hash = norm_hash
+        self.name = norm_name
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
