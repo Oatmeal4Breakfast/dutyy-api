@@ -1,0 +1,16 @@
+name: lint
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint and Format checker
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv
+      - run: uv sync --locked
+      - run: uv run ruff check --output-format=github .
+      - run: uv run ruff format --check .

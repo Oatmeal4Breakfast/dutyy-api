@@ -26,7 +26,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = ["pytest>=9.0.3", "pytest-asyncio>=0.25.0", "pytest-cov>=6.0.0"]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.15.16",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
