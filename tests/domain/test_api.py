@@ -1,6 +1,6 @@
 import pytest
 from typing import Any
-from uuid import UUID, uuid7
+from uuid import uuid7
 from datetime import datetime, UTC, timedelta
 
 from src.domain.api import APIKey
