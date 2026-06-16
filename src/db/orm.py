@@ -64,7 +64,7 @@ users_table = Table(
 api_key_table = Table(
     "api_keys",
     metadata,
-    Column("user_id", ForeignKey("users.id"), nullable=False, index=True),
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
     Column("key_hash", String, nullable=False),
     Column("name", String, nullable=False),
     Column("last_used", DateTime(timezone=True), nullable=True),
@@ -76,7 +76,7 @@ api_key_table = Table(
 project_user_table = Table(
     "project_user",
     metadata,
-    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("project_id", ForeignKey("projects.id"), primary_key=True),
 )
 mapper_registry.map_imperatively(Dutyy, dutyy_table)
