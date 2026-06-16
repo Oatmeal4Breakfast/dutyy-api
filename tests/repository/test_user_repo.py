@@ -1,7 +1,8 @@
-from sqlalchemy.exc import IntegrityError
 import pytest
 from typing import Any
 from uuid import UUID
+
+from sqlalchemy.exc import IntegrityError
 
 from src.repository.user_repo import UserRepo
 from src.domain.user import User
