@@ -10,7 +10,9 @@ jobs:
     name: Lint and Format checker
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv
+      - uses: astral-sh/setup-uv@v1
+        with:
+          version: "latest"
       - run: uv sync --locked
       - run: uv run ruff check --output-format=github .
       - run: uv run ruff format --check .
