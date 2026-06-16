@@ -14,7 +14,7 @@ from src.logger import get_logger
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from uuid import UUID
-    from sqlalchemy import Select, Result, RowMapping
+    from sqlalchemy import Select, Result, RowMapping, Delete
 
 
 logger = get_logger(__name__)
@@ -51,7 +51,7 @@ class UserRepo(AbstractRepository[User]):
         return [User(**row) for row in rows]
 
     async def delete(self, entity: User) -> None:
-        stmt = delete(users_table).where(users_table.c.id == entity.id)
+        stmt: Delete = delete(users_table).where(users_table.c.id == entity.id)
 
         try:
             await self._session.execute(stmt)
