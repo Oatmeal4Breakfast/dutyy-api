@@ -64,7 +64,12 @@ users_table = Table(
 api_key_table = Table(
     "api_keys",
     metadata,
-    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column(
+        "user_id",
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
     Column("key_hash", String, nullable=False),
     Column("name", String, nullable=False),
     Column("last_used", DateTime(timezone=True), nullable=True),
