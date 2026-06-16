@@ -59,7 +59,9 @@ class Project:
         self._touch()
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data: dict[str, Any] = asdict(self)
+        data.pop("events", None)
+        return data
 
     def update_name(self, name: str) -> None:
         norm_name = name.strip().lower()
