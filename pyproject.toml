@@ -35,9 +35,16 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--cov=src --cov-report=term-missing"
 markers = [
     "integration: marks tests as integration tests (require a running database)",
 ]
+
+[tool.coverage.run]
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
