@@ -7,7 +7,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.repository.abstract_repository import AbstractRepository, Operation
-from src.db.orm import dutyy_table
+from src.db.orm import dutyy_table, project_user_table
 from src.domain.dutyy import Dutyy
 from src.logger import get_logger
 
@@ -113,20 +113,26 @@ class DutyRepo(AbstractRepository[Dutyy]):
 
         return Dutyy(**row) if row is not None else None
 
-    async def get_by_name(self, dutyy_name: str) -> Dutyy | None:
-        stmt: Select[Any] = select(dutyy_table).where(
-            dutyy_table.c.title.like(dutyy_name)
+    async def search_by_name(self, dutyy_name: str, user_id: UUID) -> list[Dutyy]:
+        stmt: Select[Any] = (
+            select(dutyy_table)
+            .join(
+                project_user_table,
+                dutyy_table.c.project_id == project_user_table.c.project_id,
+            )
+            .where(project_user_table.c.user_id == user_id)
+            .where(dutyy_table.c.title.ilike(f"%{dutyy_name}%"))
         )
 
         try:
-            result: Result[Any] = await self._session.execute(stmt)
+            results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
+        rows: Sequence[RowMapping] = results.mappings().all()
 
-        return Dutyy(**row) if row is not None else None
+        return [Dutyy(**row) for row in rows]
 
     async def get_by_project_id(self, project_id: UUID) -> list[Dutyy]:
         stmt: Select[Any] = select(dutyy_table).where(
@@ -140,3 +146,4 @@ class DutyRepo(AbstractRepository[Dutyy]):
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
+        return [Dutyy(**row) for row in rows]
