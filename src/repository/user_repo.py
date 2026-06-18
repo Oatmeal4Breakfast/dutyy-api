@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import update, delete, select
 
 from src.repository.abstract_repository import AbstractRepository, Operation
-from src.db.orm import users_table
+from src.db.orm import users_table, project_user_table
 from src.domain.user import User
 from src.logger import get_logger
 
@@ -93,9 +93,7 @@ class UserRepo(AbstractRepository[User]):
             raise
 
     async def get_by_id(self, user_id: UUID) -> User | None:
-        stmt: Select[tuple[Any]] = select(users_table).where(
-            users_table.c.id == user_id
-        )
+        stmt: Select[Any] = select(users_table).where(users_table.c.id == user_id)
 
         try:
             result: Result[Any] = await self._session.execute(stmt)
@@ -106,3 +104,19 @@ class UserRepo(AbstractRepository[User]):
         row: RowMapping | None = result.mappings().one_or_none()
 
         return User(**row) if row is not None else None
+
+    async def get_users_by_project_id(self, project_id: UUID) -> list[User]:
+        stmt: Select[Any] = (
+            select(users_table)
+            .join(project_user_table, users_table.c.id == project_user_table.c.user_id)
+            .where(project_user_table.c.project_id == project_id)
+        )
+
+        try:
+            results: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        rows: Sequence[RowMapping] = results.mappings().all()
+        return [User(**row) for row in rows]
