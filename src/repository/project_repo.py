@@ -3,16 +3,17 @@ from typing import TYPE_CHECKING, Any, Sequence
 from enum import StrEnum, auto
 
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, insert
 
 from src.repository.abstract_repository import AbstractRepository, Operation
-from src.db.orm import projects_table
+from src.db.orm import projects_table, project_user_table
 from src.domain.project import Project
 from src.logger import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy import Select, RowMapping, Result, Delete
+    from uuid import UUID
 
 
 logger = get_logger(__name__)
@@ -67,8 +68,12 @@ class ProjectRepo(AbstractRepository[Project]):
 
     async def add(self, entity: Project) -> None:
         self._session.add(entity)
+        stmt = insert(project_user_table).values(
+            project_id=entity.id, user_id=entity.owner_id
+        )
 
         try:
+            await self._session.execute(stmt)
             await self._session.flush()
         except IntegrityError:
             logger.error(
@@ -100,3 +105,71 @@ class ProjectRepo(AbstractRepository[Project]):
             logger.error(
                 event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.UPDATE
             )
+            raise
+
+    async def get_by_id(self, project_id: UUID) -> Project | None:
+        stmt: Select[Any] = select(projects_table).where(
+            projects_table.c.id == project_id
+        )
+
+        try:
+            result: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            raise
+
+        row: RowMapping | None = result.mappings().one_or_none()
+
+        return Project(**row) if row is not None else None
+
+    async def search_by_name(self, project_name: str, owner_id: UUID) -> list[Project]:
+        stmt: Select[Any] = (
+            select(projects_table)
+            .where(projects_table.c.name.ilike(f"%{project_name}%"))
+            .where(projects_table.c.owner_id == owner_id)
+        )
+
+        try:
+            results: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            raise
+
+        rows: Sequence[RowMapping] = results.mappings().all()
+
+        return [Project(**row) for row in rows]
+
+    async def get_by_owner_id(self, owner_id: UUID) -> list[Project]:
+        stmt: Select[Any] = select(projects_table).where(
+            projects_table.c.owner_id == owner_id
+        )
+
+        try:
+            results: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            raise
+
+        rows: Sequence[RowMapping] = results.mappings().all()
+
+        return [Project(**row) for row in rows]
+
+    async def get_projects_by_user_id(self, user_id: UUID) -> list[Project]:
+        stmt: Select[Any] = (
+            select(projects_table)
+            .join(
+                project_user_table,
+                projects_table.c.id == project_user_table.c.project_id,
+            )
+            .where(project_user_table.c.user_id == user_id)
+        )
+
+        try:
+            results: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            raise
+
+        rows: Sequence[RowMapping] = results.mappings().all()
+
+        return [Project(**row) for row in rows]
