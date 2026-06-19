@@ -1,10 +1,42 @@
 import asyncio
 import pytest
+
+from uuid import UUID
+from typing import Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy import text
+
 from src.db.orm import metadata
+from src.repository.user_repo import UserRepo
+from src.repository.dutyy_repo import DutyRepo
+from src.repository.project_repo import ProjectRepo
+from src.domain.user import User
+from src.domain.project import Project
+from src.domain.dutyy import Dutyy
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
+
+
+def make_user(**kwargs) -> User:
+    defaults: dict[str, Any] = {
+        "first_name": "John",
+        "last_name": "Doe",
+        "email": "john.doe@example.com",
+    }
+    return User(**{**defaults, **kwargs})
+
+
+def make_project(owner_id: UUID, **kwargs) -> Project:
+    defaults: dict[str, Any] = {
+        "name": "Test",
+        "owner_id": owner_id,
+    }
+    return Project(**{**defaults, **kwargs})
+
+
+def make_dutyy(project_id: UUID, **kwargs) -> Dutyy:
+    defaults: dict[str, Any] = {"title": "Test Dutyy", "project_id": project_id}
+    return Dutyy(**{**defaults, **kwargs})
 
 
 @pytest.fixture(scope="session")
@@ -34,3 +66,27 @@ async def session(engine, setup_tables):
         await s.begin()
         yield s
         await s.rollback()
+
+
+@pytest.fixture
+async def user(session) -> User:
+    user_repo = UserRepo(session)
+    u = make_user()
+    await user_repo.add(u)
+    return u
+
+
+@pytest.fixture
+async def project(session, user) -> Project:
+    project_repo = ProjectRepo(session)
+    p = make_project(user.id)
+    await project_repo.add(p)
+    return p
+
+
+@pytest.fixture
+async def dutyy(session, project) -> Dutyy:
+    dutyy_repo = DutyRepo(session)
+    d = make_dutyy(project.id)
+    await dutyy_repo.add(d)
+    return d
