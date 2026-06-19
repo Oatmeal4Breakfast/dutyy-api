@@ -55,13 +55,6 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             await self._session.execute(stmt)
             await self._session.flush()
-        except IntegrityError:
-            logger.error(
-                event=DutyyRepoErrorEvents.DUTYY_DELETE_ERROR,
-                op=Operation.DELETE,
-                dutyy_id=entity.id,
-            )
-            raise
         except OperationalError:
             logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.DELETE)
             raise
