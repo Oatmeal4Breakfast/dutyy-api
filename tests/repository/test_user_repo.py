@@ -1,30 +1,17 @@
 import pytest
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 
 from src.repository.user_repo import UserRepo
 from src.domain.user import User
-
-
-def make_user(**kwargs) -> User:
-    defaults: dict[str, Any] = {
-        "first_name": "John",
-        "last_name": "Doe",
-        "email": "john.doe@example.com",
-    }
-    return User(**{**defaults, **kwargs})
+from tests.conftest import make_user
 
 
 @pytest.mark.integration
 class TestUserRepo:
-    async def test_add_and_retrieve_user_by_id(self, session):
+    async def test_add_and_retrieve_user_by_id(self, session, user):
         repo = UserRepo(session)
-        user: User = make_user()
-
-        await repo.add(user)
-
         result: User | None = await repo.get_by_id(user.id)
 
         assert result is not None
@@ -34,21 +21,18 @@ class TestUserRepo:
     async def test_add_and_retrieve_user_by_id_returns_none(self, session):
         repo = UserRepo(session)
         user = make_user()
-
         result: User | None = await repo.get_by_id(user.id)
 
         assert result is None
 
-    async def test_add_and_retrieve_all_users(self, session):
+    async def test_add_and_retrieve_all_users(self, session, user):
         repo = UserRepo(session)
-        user_1: User = make_user()
         user_2: User = make_user(
             first_name="Jane",
             last_name="Doe",
             email="jane.doe@example.com",
         )
 
-        await repo.add(user_1)
         await repo.add(user_2)
 
         results: list[User] = await repo.get_all()
@@ -107,3 +91,10 @@ class TestUserRepo:
         result: User | None = await repo.get_by_id(user.id)
 
         assert result is None
+
+    async def test_get_users_by_project_id(self, session, project, user):
+        repo = UserRepo(session)
+        result = await repo.get_users_by_project_id(project.id)
+
+        assert len(result) == 1
+        assert result[0].id == user.id
