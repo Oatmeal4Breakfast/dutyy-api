@@ -82,7 +82,9 @@ project_user_table = Table(
     "project_user",
     metadata,
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
-    Column("project_id", ForeignKey("projects.id"), primary_key=True),
+    Column(
+        "project_id", ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    ),
 )
 mapper_registry.map_imperatively(Dutyy, dutyy_table)
 mapper_registry.map_imperatively(
