@@ -73,6 +73,7 @@ class ProjectRepo(AbstractRepository[Project]):
         )
 
         try:
+            await self._session.flush()
             await self._session.execute(stmt)
             await self._session.flush()
         except IntegrityError:
