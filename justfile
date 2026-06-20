@@ -12,11 +12,16 @@ test *args:
 
 # Spin up the dev environment (app + db)
 dev:
-    docker compose -f docker-compose.dev.yml up
+    docker compose -f docker-compose.dev.yml up -d
 
 # Rebuild the app image and spin up the dev environment
 dev-build:
-    docker compose -f docker-compose.dev.yml up --build
+    docker compose -f docker-compose.dev.yml up --build -d
+
+migrate message:
+  docker compose -f docker-compose.dev.yml up -d --wait
+  uv run alembic revision --autogenerate -m "{{message}}"
+  uv run alembic upgrade head
 
 # Open a PR for the current branch (auto-fills title/body from commits)
 pr:
