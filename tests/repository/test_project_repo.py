@@ -1,10 +1,9 @@
 from __future__ import annotations
-from src.domain.project import Project
 import pytest
 from typing import TYPE_CHECKING
 
 from src.repository.project_repo import ProjectRepo
-from src.domain.project import ProjectStatus
+from src.domain.project import ProjectStatus, Project
 from tests.conftest import make_project
 
 if TYPE_CHECKING:
