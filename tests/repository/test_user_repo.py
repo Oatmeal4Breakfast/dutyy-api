@@ -63,6 +63,7 @@ class TestUserRepo:
         results: User | None = await repo.get_by_id(user.id)
 
         assert results is not None
+        assert isinstance(results, User)
         assert results.first_name == "Jermaine"
         assert results.id == user_id
 
@@ -85,6 +86,7 @@ class TestUserRepo:
         result: User | None = await repo.get_by_id(user.id)
 
         assert result is not None
+        assert isinstance(result, User)
 
         await repo.delete(user)
 
@@ -97,4 +99,5 @@ class TestUserRepo:
         result = await repo.get_users_by_project_id(project.id)
 
         assert len(result) == 1
+        assert isinstance(result[0], User)
         assert result[0].id == user.id

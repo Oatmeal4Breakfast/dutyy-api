@@ -1,14 +1,11 @@
 from __future__ import annotations
 import pytest
-from typing import TYPE_CHECKING
 
 
 from src.repository.dutyy_repo import DutyRepo
+from src.domain.dutyy import Dutyy
 from src.domain.enums import DutyyStatus
 from tests.conftest import make_dutyy, make_project
-
-if TYPE_CHECKING:
-    from src.domain.dutyy import Dutyy
 
 
 @pytest.mark.integration
@@ -18,6 +15,7 @@ class TestDutyyRepo:
         result: list[Dutyy] = await repo.get_all()
 
         assert len(result) == 1
+        assert isinstance(result[0], Dutyy)
         assert result[0].id == dutyy.id
 
     async def test_get_all_dutyy_returns_empty_list(self, session):
@@ -32,6 +30,7 @@ class TestDutyyRepo:
 
         get_all: list[Dutyy] = await repo.get_all()
         assert len(get_all) == 1
+        assert isinstance(get_all[0], Dutyy)
 
         await repo.delete(dutyy)
 
@@ -50,6 +49,7 @@ class TestDutyyRepo:
 
         result: Dutyy | None = await repo.get_by_id(dutyy.id)
         assert result is not None
+        assert isinstance(result, Dutyy)
 
     async def test_update_dutyy_success(self, session, dutyy):
         repo = DutyRepo(session)
@@ -63,6 +63,7 @@ class TestDutyyRepo:
         result: Dutyy | None = await repo.get_by_id(dutyy.id)
 
         assert result is not None
+        assert isinstance(result, Dutyy)
         assert result.status == DutyyStatus.IN_PROGRESS
 
     async def test_get_by_id_success(self, session, dutyy):
@@ -70,6 +71,7 @@ class TestDutyyRepo:
 
         result: Dutyy | None = await repo.get_by_id(dutyy.id)
         assert result is not None
+        assert isinstance(result, Dutyy)
 
     async def test_get_by_project_id_success(self, session, dutyy, project):
         repo = DutyRepo(session)
@@ -78,6 +80,7 @@ class TestDutyyRepo:
 
         assert isinstance(result, list)
         assert len(result) == 1
+        assert isinstance(result[0], Dutyy)
         assert result[0].id == dutyy.id
         assert result[0].project_id == project.id
 
@@ -97,4 +100,5 @@ class TestDutyyRepo:
         results: list[Dutyy] = await repo.search_by_name("test", user.id)
 
         assert isinstance(results, list)
+        assert isinstance(results[0], Dutyy)
         assert results[0].project_id == dutyy.project_id
