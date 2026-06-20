@@ -16,6 +16,7 @@ class APIKeyStatus(StrEnum):
 class APIKey:
     key_hash: str
     name: str
+    user_id: UUID
     status: APIKeyStatus = field(default=APIKeyStatus.ACTIVE)
     last_used: datetime | None = None
     expires_at: datetime | None = None

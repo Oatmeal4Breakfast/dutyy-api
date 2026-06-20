@@ -7,9 +7,12 @@ from src.domain.api import APIKey
 from src.domain.exceptions import DomainValidationError
 
 
+_DEFAULT_USER_ID = uuid7()
+
+
 def make_api_key(**kwargs) -> APIKey:
     defaults: dict[str, Any] = {
-        "user_id": uuid7(),
+        "user_id": _DEFAULT_USER_ID,
         "key_hash": "hashed_key_abc123",
         "name": "macbook",
     }
