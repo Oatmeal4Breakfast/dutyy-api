@@ -11,13 +11,10 @@ from sqlalchemy import (
     Column,
     MetaData,
 )
-from src.domain.dutyy import DutyyStatus
-from src.domain.project import ProjectStatus
-from src.domain.user import UserStatus
-from src.domain.dutyy import Dutyy
-from src.domain.project import Project
-from src.domain.user import User
-from src.domain.api import APIKey
+from src.domain.dutyy import Dutyy, DutyyStatus
+from src.domain.project import Project, ProjectStatus
+from src.domain.user import User, UserStatus
+from src.domain.api import APIKey, APIKeyStatus
 
 
 mapper_registry = registry()
@@ -74,6 +71,7 @@ api_key_table = Table(
     ),
     Column("key_hash", String, nullable=False),
     Column("name", String, nullable=False),
+    Column("status", Enum(APIKeyStatus), nullable=False),
     Column("last_used", DateTime(timezone=True), nullable=True),
     Column("expires_at", DateTime(timezone=True), nullable=True),
     Column("created_date", DateTime(timezone=True), nullable=False),

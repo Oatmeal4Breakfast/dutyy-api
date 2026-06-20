@@ -2,15 +2,21 @@ from datetime import datetime, UTC
 from uuid import UUID, uuid7
 from typing import Any
 from dataclasses import dataclass, field, asdict
+from enum import StrEnum, auto
 
 from src.domain.exceptions import DomainValidationError
 
 
+class APIKeyStatus(StrEnum):
+    ACTIVE = auto()
+    INACTIVE = auto()
+
+
 @dataclass
 class APIKey:
-    user_id: UUID
     key_hash: str
     name: str
+    status: APIKeyStatus = field(default=APIKeyStatus.ACTIVE)
     last_used: datetime | None = None
     expires_at: datetime | None = None
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -27,6 +33,9 @@ class APIKey:
 
         self.key_hash = norm_hash
         self.name = norm_name
+
+    def mark_inactive(self) -> None:
+        self.status = APIKeyStatus.INACTIVE
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
