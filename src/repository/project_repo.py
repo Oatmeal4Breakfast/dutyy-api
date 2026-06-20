@@ -50,10 +50,12 @@ class ProjectRepo(AbstractRepository[Project]):
         return [Project(**row) for row in rows]
 
     async def delete(self, entity: Project) -> None:
-        stmt: Delete = delete(projects_table).where(projects_table.c.id == entity.id)
+        delete_stmt: Delete = delete(projects_table).where(
+            projects_table.c.id == entity.id
+        )
 
         try:
-            await self._session.execute(stmt)
+            await self._session.execute(delete_stmt)
             await self._session.flush()
         except IntegrityError:
             logger.error(
@@ -88,6 +90,7 @@ class ProjectRepo(AbstractRepository[Project]):
 
     async def update(self, entity: Project) -> None:
         data: dict[str, Any] = entity.to_dict()
+        data.pop("dutyys", None)
         stmt = (
             update(projects_table)
             .where(projects_table.c.id == entity.id)

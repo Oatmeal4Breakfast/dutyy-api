@@ -13,14 +13,14 @@ if TYPE_CHECKING:
 
 @pytest.mark.integration
 class TestDutyyRepo:
-    async def test_get_all(self, session, dutyy):
+    async def test_get_all_dutyy_success(self, session, dutyy):
         repo = DutyRepo(session)
         result: list[Dutyy] = await repo.get_all()
 
         assert len(result) == 1
         assert result[0].id == dutyy.id
 
-    async def test_get_all_returns_empty_list(self, session):
+    async def test_get_all_dutyy_returns_empty_list(self, session):
         repo = DutyRepo(session)
 
         result: list[Dutyy] = await repo.get_all()
