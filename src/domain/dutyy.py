@@ -1,11 +1,17 @@
 from datetime import datetime, UTC
 from dataclasses import dataclass, field, asdict
+from enum import StrEnum, auto
 from uuid import UUID, uuid7
 from typing import Any
 
-from src.domain.enums import DutyyStatus
 from src.domain.exceptions import DomainValidationError
 from src.domain.events import DutyyCompleted
+
+
+class DutyyStatus(StrEnum):
+    NEW = auto()
+    IN_PROGRESS = auto()
+    COMPLETE = auto()
 
 
 @dataclass

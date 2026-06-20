@@ -3,7 +3,7 @@ from typing import Any
 from datetime import datetime, UTC, timedelta
 
 from src.domain.user import User
-from src.domain.enums import UserStatus
+from src.domain.user import UserStatus
 from src.domain.exceptions import DomainValidationError
 
 

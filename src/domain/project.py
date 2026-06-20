@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field, asdict
-from typing import Any
 from datetime import datetime, UTC
+from enum import StrEnum, auto
+from typing import Any
 from uuid import UUID, uuid7
 
 from src.domain.dutyy import Dutyy
-from src.domain.enums import ProjectStatus
 from src.domain.exceptions import (
     DomainValidationError,
     DutyyAssignedError,
@@ -16,6 +16,13 @@ from src.domain.events import (
     DutyyRemoved,
     OwnershipTransferred,
 )
+
+
+class ProjectStatus(StrEnum):
+    NEW = auto()
+    IN_PROGRESS = auto()
+    COMPLETE = auto()
+    ABANDONED = auto()
 
 
 @dataclass

@@ -11,7 +11,9 @@ from sqlalchemy import (
     Column,
     MetaData,
 )
-from src.domain.enums import DutyyStatus, ProjectStatus, UserStatus
+from src.domain.dutyy import DutyyStatus
+from src.domain.project import ProjectStatus
+from src.domain.user import UserStatus
 from src.domain.dutyy import Dutyy
 from src.domain.project import Project
 from src.domain.user import User

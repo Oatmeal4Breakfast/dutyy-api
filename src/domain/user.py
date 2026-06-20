@@ -1,11 +1,18 @@
 from datetime import datetime, UTC
-from uuid import UUID, uuid7
-from typing import Any
 from dataclasses import dataclass, field, asdict
+from enum import StrEnum, auto
+from typing import Any
+from uuid import UUID, uuid7
+
 from email_validator import validate_email, EmailNotValidError
 
-from src.domain.enums import UserStatus
 from src.domain.exceptions import DomainValidationError
+
+
+class UserStatus(StrEnum):
+    ACTIVE = auto()
+    INACTIVE = auto()
+    BLOCKED = auto()
 
 
 @dataclass

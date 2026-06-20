@@ -4,7 +4,7 @@ import pytest
 from typing import TYPE_CHECKING
 
 from src.repository.project_repo import ProjectRepo
-from src.domain.enums import ProjectStatus
+from src.domain.project import ProjectStatus
 from tests.conftest import make_project
 
 if TYPE_CHECKING:

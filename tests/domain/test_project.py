@@ -7,7 +7,7 @@ from datetime import timedelta, datetime, UTC
 
 from src.domain.project import Project
 from src.domain.dutyy import Dutyy
-from src.domain.enums import ProjectStatus
+from src.domain.project import ProjectStatus
 from src.domain.events import ProjectCompleted, DutyyAdded, DutyyRemoved
 from src.domain.exceptions import (
     DomainValidationError,

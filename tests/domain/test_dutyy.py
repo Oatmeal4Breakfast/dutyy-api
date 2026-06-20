@@ -4,7 +4,7 @@ from uuid import UUID
 from datetime import datetime, UTC, timedelta
 
 from src.domain.dutyy import Dutyy
-from src.domain.enums import DutyyStatus
+from src.domain.dutyy import DutyyStatus
 from src.domain.events import DutyyCompleted
 from src.domain.exceptions import DomainValidationError
 
