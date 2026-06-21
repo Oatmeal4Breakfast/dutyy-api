@@ -18,6 +18,9 @@ dev:
 dev-build:
     docker compose -f docker-compose.dev.yml up --build -d
 
+dev-down:
+  docker compose -f docker-compose.dev.yml down
+
 migrate message:
   docker compose -f docker-compose.dev.yml up -d --wait
   uv run alembic revision --autogenerate -m "{{message}}"
