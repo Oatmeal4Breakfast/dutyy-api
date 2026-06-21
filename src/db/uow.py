@@ -2,7 +2,6 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
-from src.db.db import get_session_local
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
 from src.repository.user_repo import UserRepo
@@ -50,7 +49,3 @@ class UnitOfWork(AbstractUnitOfWork):
 
     async def rollback(self) -> None:
         await self._session.rollback()
-
-
-def get_uow() -> UnitOfWork:
-    return UnitOfWork(get_session_local())
