@@ -150,3 +150,25 @@ def test_update_details_not_none() -> None:
 
     time_diff = datetime.now(UTC) - dutyy.modified_date
     assert time_diff < timedelta(seconds=1)
+
+
+def test_update_details_empty_string_is_ignored() -> None:
+    dutyy = make_dutyy()
+
+    dutyy.update_details("   ")
+
+    assert dutyy.details is None
+    assert dutyy.modified_date is None
+
+
+def test_update_status_complete_sets_completed_date_and_event() -> None:
+    dutyy = make_dutyy()
+
+    dutyy.update_status(DutyyStatus.COMPLETE)
+
+    assert dutyy.completed_date is not None
+    time_diff = datetime.now(UTC) - dutyy.completed_date
+    assert time_diff < timedelta(seconds=1)
+    assert len(dutyy.events) == 1
+    assert isinstance(dutyy.events[0], DutyyCompleted)
+    assert dutyy.events[0].id == dutyy.id

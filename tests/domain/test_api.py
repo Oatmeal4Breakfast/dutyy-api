@@ -73,3 +73,15 @@ def test_api_key_belongs_to_user() -> None:
     user_id = uuid7()
     api_key = make_api_key(user_id=user_id)
     assert api_key.user_id == user_id
+
+
+def test_mark_inactive_changes_status() -> None:
+    from src.domain.api import APIKeyStatus
+
+    api_key = make_api_key()
+
+    assert api_key.status == APIKeyStatus.ACTIVE
+
+    api_key.mark_inactive()
+
+    assert api_key.status == APIKeyStatus.INACTIVE

@@ -190,3 +190,41 @@ def test_transfer_ownership_idempotent() -> None:
     project.transfer_ownership(owner_id)
 
     assert project.modified_date is None
+
+
+def test_transfer_ownership_appends_event() -> None:
+    from src.domain.events import OwnershipTransferred
+
+    project = make_project()
+    new_owner = uuid7()
+
+    project.transfer_ownership(new_owner)
+
+    assert len(project.events) == 1
+    assert isinstance(project.events[0], OwnershipTransferred)
+    assert project.events[0].new_owner == new_owner
+
+
+def test_update_status_complete_not_reversible() -> None:
+    project = make_project()
+
+    project.update_status(ProjectStatus.COMPLETE)
+
+    with pytest.raises(DomainValidationError):
+        project.update_status(ProjectStatus.NEW)
+
+
+def test_delete_dutyy_specific_when_multiple_exist() -> None:
+    project = make_project()
+    dutyy_1 = make_dutyy(project_id=project.id)
+    dutyy_2 = make_dutyy(project_id=project.id, title="Second Dutyy")
+
+    project.add_dutyy(dutyy_1)
+    project.add_dutyy(dutyy_2)
+
+    assert len(project.dutyys) == 2
+
+    project.delete_dutyy(dutyy_1)
+
+    assert len(project.dutyys) == 1
+    assert project.dutyys[0].id == dutyy_2.id
