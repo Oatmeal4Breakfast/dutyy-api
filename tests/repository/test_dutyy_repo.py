@@ -102,3 +102,19 @@ class TestDutyyRepo:
         assert isinstance(results, list)
         assert isinstance(results[0], Dutyy)
         assert results[0].project_id == dutyy.project_id
+
+    async def test_search_by_name_returns_empty_list(self, session, dutyy, user):
+        repo = DutyRepo(session)
+
+        results: list[Dutyy] = await repo.search_by_name("nonexistent", user.id)
+
+        assert isinstance(results, list)
+        assert len(results) == 0
+
+    async def test_search_by_name_case_insensitive(self, session, dutyy, user):
+        repo = DutyRepo(session)
+
+        results: list[Dutyy] = await repo.search_by_name("TEST", user.id)
+
+        assert len(results) == 1
+        assert results[0].id == dutyy.id

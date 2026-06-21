@@ -130,3 +130,29 @@ class TestProjectRepo:
 
         assert len(results) == 1
         assert isinstance(results[0], Project)
+
+    async def test_get_projects_by_user_id_returns_empty_list(self, session, user):
+        repo = ProjectRepo(session)
+        results: list[Project] = await repo.get_projects_by_user_id(user.id)
+
+        assert isinstance(results, list)
+        assert len(results) == 0
+
+    async def test_search_by_name_owner_isolation(self, session, project, user):
+        from src.repository.user_repo import UserRepo
+        from tests.conftest import make_user
+
+        repo = ProjectRepo(session)
+
+        other_user = make_user(
+            first_name="Jane", last_name="Doe", email="jane@example.com"
+        )
+        await UserRepo(session).add(other_user)
+
+        other_project = make_project(other_user.id, name="Test Other")
+        await repo.add(other_project)
+
+        results: list[Project] = await repo.search_by_name("Test", owner_id=user.id)
+
+        assert len(results) == 1
+        assert results[0].id == project.id

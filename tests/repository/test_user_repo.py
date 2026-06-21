@@ -101,3 +101,36 @@ class TestUserRepo:
         assert len(result) == 1
         assert isinstance(result[0], User)
         assert result[0].id == user.id
+
+    async def test_get_users_by_project_id_returns_empty_list(self, session, project):
+        from uuid import uuid7
+
+        repo = UserRepo(session)
+        result = await repo.get_users_by_project_id(uuid7())
+
+        assert isinstance(result, list)
+        assert len(result) == 0
+
+    async def test_get_users_by_project_id_multiple_users(self, session, project, user):
+        from sqlalchemy import insert
+        from src.db.orm import project_user_table
+        from tests.conftest import make_user
+
+        repo = UserRepo(session)
+
+        second_user = make_user(
+            first_name="Jane", last_name="Doe", email="jane@example.com"
+        )
+        await repo.add(second_user)
+        await session.execute(
+            insert(project_user_table).values(
+                project_id=project.id, user_id=second_user.id
+            )
+        )
+
+        result = await repo.get_users_by_project_id(project.id)
+
+        assert len(result) == 2
+        ids = {u.id for u in result}
+        assert user.id in ids
+        assert second_user.id in ids
