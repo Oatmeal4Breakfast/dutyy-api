@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 from enum import StrEnum, auto
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -27,7 +27,7 @@ class APIRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_by_user_id(self, user_id: UUID) -> APIKey | None:
+    async def get_by_user_id(self, user_id: UUID) -> list[APIKey]:
         stmt: Select[Any] = select(api_key_table).where(
             api_key_table.c.user_id == user_id
         )
@@ -38,9 +38,9 @@ class APIRepo:
             logger.error(event=APIRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
+        rows: Sequence[RowMapping] = result.mappings().all()
 
-        return APIKey(**row) if row is not None else None
+        return [APIKey(**row) for row in rows]
 
     async def add(self, entity: APIKey) -> None:
         self._session.add(entity)
