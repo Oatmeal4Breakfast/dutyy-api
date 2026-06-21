@@ -1,6 +1,6 @@
 import pytest
 
-from src.repository.api_repository import APIRepo
+from src.repository.api_repo import APIRepo
 from src.domain.api import APIKey, APIKeyStatus
 from tests.conftest import make_api_key
 

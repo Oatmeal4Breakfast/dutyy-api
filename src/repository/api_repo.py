@@ -4,7 +4,7 @@ from enum import StrEnum, auto
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repository import Operation
+from src.repository.abstract_repo import Operation
 from src.domain.api import APIKey
 from src.db.orm import api_key_table
 from src.logger import get_logger

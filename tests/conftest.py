@@ -10,7 +10,7 @@ from src.db.orm import metadata
 from src.repository.user_repo import UserRepo
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
-from src.repository.api_repository import APIRepo
+from src.repository.api_repo import APIRepo
 from src.domain.user import User
 from src.domain.project import Project
 from src.domain.dutyy import Dutyy

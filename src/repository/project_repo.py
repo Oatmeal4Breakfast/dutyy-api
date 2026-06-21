@@ -5,7 +5,7 @@ from enum import StrEnum, auto
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import select, update, delete, insert
 
-from src.repository.abstract_repository import AbstractRepository, Operation
+from src.repository.abstract_repo import AbstractRepository, Operation
 from src.db.orm import projects_table, project_user_table
 from src.domain.project import Project
 from src.logger import get_logger

@@ -6,7 +6,7 @@ from enum import StrEnum, auto
 from sqlalchemy import select, update, delete
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repository import AbstractRepository, Operation
+from src.repository.abstract_repo import AbstractRepository, Operation
 from src.db.orm import dutyy_table, project_user_table
 from src.domain.dutyy import Dutyy
 from src.logger import get_logger
