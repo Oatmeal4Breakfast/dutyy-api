@@ -20,8 +20,8 @@ class Config(BaseSettings):
     postgres_db: str
     postgres_password: str
     postgres_port: int = Field(default=5432, ge=1, le=65535)
-    max_overflow: int
-    pool_size: int
+    max_overflow: int = Field(default=10)
+    pool_size: int = Field(default=5)
 
     env: ENV = Field(default=ENV.DEVELOPMENT)
 
