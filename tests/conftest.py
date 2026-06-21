@@ -10,9 +10,11 @@ from src.db.orm import metadata
 from src.repository.user_repo import UserRepo
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
+from src.repository.api_repository import APIRepo
 from src.domain.user import User
 from src.domain.project import Project
 from src.domain.dutyy import Dutyy
+from src.domain.api import APIKey
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
 
@@ -32,6 +34,15 @@ def make_project(owner_id: UUID, **kwargs) -> Project:
         "owner_id": owner_id,
     }
     return Project(**{**defaults, **kwargs})
+
+
+def make_api_key(user_id: UUID, **kwargs) -> APIKey:
+    defaults: dict[str, Any] = {
+        "user_id": user_id,
+        "key_hash": "hashed_key_abc123",
+        "name": "macbook",
+    }
+    return APIKey(**{**defaults, **kwargs})
 
 
 def make_dutyy(project_id: UUID, **kwargs) -> Dutyy:
@@ -82,6 +93,14 @@ async def project(session, user) -> Project:
     p = make_project(user.id)
     await project_repo.add(p)
     return p
+
+
+@pytest.fixture
+async def api_key(session, user) -> APIKey:
+    repo = APIRepo(session)
+    key = make_api_key(user.id)
+    await repo.add(key)
+    return key
 
 
 @pytest.fixture
