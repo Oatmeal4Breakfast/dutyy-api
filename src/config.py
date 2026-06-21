@@ -20,9 +20,15 @@ class Config(BaseSettings):
     postgres_db: str
     postgres_password: str
     postgres_port: int = Field(default=5432, ge=1, le=65535)
+    max_overflow: int
+    pool_size: int
 
     env: ENV = Field(default=ENV.DEVELOPMENT)
 
     @property
     def uri(self) -> str:
         return f"postgresql+psycopg://{self.postgres_user}:{quote_plus(self.postgres_password)}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+
+
+def get_config() -> Config:
+    return Config()
