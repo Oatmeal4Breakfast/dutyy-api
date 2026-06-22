@@ -7,6 +7,7 @@ from uuid import UUID, uuid7
 from email_validator import validate_email, EmailNotValidError
 
 from src.domain.exceptions import DomainValidationError
+from src.domain.events import UserCreated, UserStatusChanged, UserPasswordReset
 
 
 class UserStatus(StrEnum):
@@ -31,6 +32,14 @@ class User:
     @property
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
+
+    @classmethod
+    def create(cls, first_name: str, last_name: str, email: str) -> User:
+        user = cls(first_name=first_name, last_name=last_name, email=email)
+        user.events.append(
+            UserCreated(user.id, user.email, user.full_name, user.created_date)
+        )
+        return user
 
     def __post_init__(self) -> None:
         norm_fname = self.first_name.strip().title()
@@ -80,34 +89,31 @@ class User:
         except EmailNotValidError as e:
             raise DomainValidationError("User", [f"Invalid email: {e}"])
 
-    def _mark_inactive(self) -> None:
-        self.status = UserStatus.INACTIVE
-        self._touch()
-
-    def _mark_active(self) -> None:
-        self.status = UserStatus.ACTIVE
-        self._touch()
-
-    def _mark_blocked(self) -> None:
-        self.status = UserStatus.BLOCKED
-        self._touch()
-
     def update_status(self, status: UserStatus) -> None:
         if status == self.status:
             return
 
-        match status:
-            case UserStatus.ACTIVE:
-                self._mark_active()
-            case UserStatus.INACTIVE:
-                self._mark_inactive()
-            case UserStatus.BLOCKED:
-                self._mark_blocked()
-            case _:
-                raise DomainValidationError(
-                    "User", [f"{status} is not a valid transition"]
-                )
+        self.status = status
+        mod_date = self._touch()
+
+        self.events.append(
+            UserStatusChanged(
+                user_id=self.id,
+                email=self.email,
+                full_name=self.full_name,
+                new_status=self.status,
+                modified_date=mod_date,
+            )
+        )
 
     def update_password_hash(self, password_hash: str) -> None:
         self.password_hash = password_hash
-        self._touch()
+        mod_date = self._touch()
+        self.events.append(
+            UserPasswordReset(
+                user_id=self.id,
+                email=self.email,
+                full_name=self.full_name,
+                reqested_date=mod_date,
+            )
+        )
