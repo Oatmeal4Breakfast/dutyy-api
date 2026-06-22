@@ -6,6 +6,7 @@ from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
 from src.repository.user_repo import UserRepo
 from src.repository.api_repo import APIRepo
+from src.repository.health_repo import HealthRepo
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class UnitOfWork(AbstractUnitOfWork):
         self.project = ProjectRepo(self._session)
         self.user = UserRepo(self._session)
         self.api = APIRepo(self._session)
+        self.health = HealthRepo(self._session)
         return self
 
     async def __aexit__(self, exc_type, *_) -> None:
