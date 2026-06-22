@@ -1,12 +1,16 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
+
+from src.api.deps import get_uow
 from src.db.db import create_engine_and_session
 from src.config import get_config
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+    from src.db.uow import UnitOfWork
 
 app = FastAPI(title="dutyy-api")
 
@@ -21,3 +25,13 @@ async def lifespan(app: FastAPI):
 @app.get("/")
 async def root():
     return {"message": "hello world"}
+
+
+@app.get("/health")
+async def health(uow: UnitOfWork = Depends(get_uow)):
+    async with uow as u:
+        try:
+            await u.health.ping()
+            return JSONResponse(content={"status": "ok"}, status_code=200)
+        except Exception:
+            return JSONResponse(content={"status": "unavailable"}, status_code=503)
