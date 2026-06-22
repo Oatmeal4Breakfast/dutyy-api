@@ -16,6 +16,14 @@ class UserStatus(StrEnum):
     BLOCKED = auto()
 
 
+@dataclass(frozen=True)
+class UserUpdateFields:
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    status: UserStatus | None = None
+
+
 @dataclass
 class User:
     first_name: str
