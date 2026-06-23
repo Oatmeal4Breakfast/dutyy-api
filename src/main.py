@@ -21,8 +21,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
     from src.db.uow import UnitOfWork
 
-app = FastAPI(title="dutyy-api")
-
 
 async def lifespan(app: FastAPI):
     config: Config = get_config()
@@ -31,6 +29,9 @@ async def lifespan(app: FastAPI):
     app.state.session_factory: async_sessionmaker[AsyncSession] = session
     yield
     engine.dispose()
+
+
+app = FastAPI(title="dutyy-api", lifespan=lifespan)
 
 
 @app.exception_handler(DomainValidationError)
