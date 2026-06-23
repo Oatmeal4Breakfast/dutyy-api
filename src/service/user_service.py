@@ -33,6 +33,14 @@ class UserService:
         )
         return user
 
+    async def get_user_by_id(self, user_id: UUID) -> User:
+        async with self._uow as uow:
+            user: User | None = await uow.user.get_by_id(user_id=user_id)
+
+            if user is None:
+                raise UserNotFoundError(user_id)
+            return user
+
     async def update_user(self, user_id: UUID, changes: UserUpdateFields) -> User:
         errors: list[str] = []
         async with self._uow as uow:
