@@ -9,6 +9,7 @@ from sqlalchemy import update, delete, select
 from src.repository.abstract_repo import AbstractRepository, Operation
 from src.db.orm import users_table, project_user_table
 from src.domain.user import User
+from src.domain.exceptions import UserAlreadyExistsError
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -68,13 +69,13 @@ class UserRepo(AbstractRepository[User]):
 
         try:
             await self._session.flush()
-        except IntegrityError:
+        except IntegrityError as e:
             logger.error(
                 event=UserRepoErrorEvents.USER_ADD_CONFLICT,
                 user_id=entity.id,
                 user_name=entity.full_name,
             )
-            raise
+            raise UserAlreadyExistsError(entity.email) from e
         except OperationalError:
             logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.ADD)
             raise
@@ -85,9 +86,9 @@ class UserRepo(AbstractRepository[User]):
         try:
             await self._session.execute(stmt)
             await self._session.flush()
-        except IntegrityError:
+        except IntegrityError as e:
             logger.error(event=UserRepoErrorEvents.USER_UPDATE_ERROR, user_id=entity.id)
-            raise
+            raise UserAlreadyExistsError(entity.email) from e
         except OperationalError:
             logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise

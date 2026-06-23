@@ -8,6 +8,7 @@ from sqlalchemy import select, update, delete, insert
 from src.repository.abstract_repo import AbstractRepository, Operation
 from src.db.orm import projects_table, project_user_table
 from src.domain.project import Project
+from src.domain.exceptions import ProjectAlreadyExistsError
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -78,12 +79,12 @@ class ProjectRepo(AbstractRepository[Project]):
             await self._session.flush()
             await self._session.execute(stmt)
             await self._session.flush()
-        except IntegrityError:
+        except IntegrityError as e:
             logger.error(
                 event=ProjectRepoErrorEvents.PROJECT_ADD_CONFLICT,
                 project_id=entity.id,
             )
-            raise
+            raise ProjectAlreadyExistsError(entity.name) from e
         except OperationalError:
             logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.ADD)
             raise
@@ -100,11 +101,11 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             await self._session.execute(stmt)
             await self._session.flush()
-        except IntegrityError:
+        except IntegrityError as e:
             logger.error(
                 event=ProjectRepoErrorEvents.PROJECT_UPDATE_ERROR, project_id=entity.id
             )
-            raise
+            raise ProjectAlreadyExistsError(entity.name) from e
         except OperationalError:
             logger.error(
                 event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.UPDATE

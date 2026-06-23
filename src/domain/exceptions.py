@@ -17,3 +17,15 @@ class DutyyNotAssignedError(Exception):
     def __init__(self, id: UUID) -> None:
         self.id = id
         super().__init__(f"Dutyy with id {self.id} is not assigned to project")
+
+
+class UserAlreadyExistsError(Exception):
+    def __init__(self, email: str) -> None:
+        self.email = email
+        super().__init__(f"user with email {self.email} already exists")
+
+
+class ProjectAlreadyExistsError(Exception):
+    def __init__(self, name: str) -> None:
+        self.name = name
+        super().__init__(f"project with name {self.name} already exists")
