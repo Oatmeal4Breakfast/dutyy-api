@@ -8,7 +8,6 @@ from src.db.uow import UnitOfWork
 from src.logger import get_logger
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import async_sessionmaker
     from uuid import UUID
 
 logger = get_logger(__name__)
@@ -21,21 +20,22 @@ class UserNotFoundError(Exception):
 
 
 class UserService:
-    def __init__(self, session_factory: async_sessionmaker):
-        self.uow = UnitOfWork(session_factory)
+    def __init__(self, uow: UnitOfWork):
+        self._uow = uow
 
-    async def create_user(self, fname: str, lname: str, email: str) -> None:
+    async def create_user(self, fname: str, lname: str, email: str) -> User:
         user = User.create(first_name=fname, last_name=lname, email=email)
-        async with self.uow as uow:
+        async with self._uow as uow:
             await uow.user.add(user)
             await uow.commit()
         logger.info(
             event="user_created", user_id=str(user.id), created=user.created_date
         )
+        return user
 
     async def update_user(self, user_id: UUID, changes: UserUpdateFields) -> User:
         errors: list[str] = []
-        async with self.uow as uow:
+        async with self._uow as uow:
             user: User | None = await uow.user.get_by_id(user_id)
 
             if user is None:
@@ -80,7 +80,7 @@ class UserService:
             return user
 
     async def update_password_hash(self, user_id: UUID, new_hash: str) -> User:
-        async with self.uow as uow:
+        async with self._uow as uow:
             user: User | None = await uow.user.get_by_id(user_id)
 
             if user is None:
