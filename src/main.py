@@ -6,13 +6,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 
 from src.api.deps import get_uow
+from src.api import user_router
 from src.domain.exceptions import (
     DomainValidationError,
     UserAlreadyExistsError,
     ProjectAlreadyExistsError,
 )
+from src.service.user_service import UserNotFoundError
 from src.db.db import create_engine_and_session
-from src.config import get_config
+from src.config import get_config, Config
+from src.logger import config_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
@@ -22,7 +25,9 @@ app = FastAPI(title="dutyy-api")
 
 
 async def lifespan(app: FastAPI):
-    engine, session = create_engine_and_session(get_config())
+    config: Config = get_config()
+    config_logger(config)
+    engine, session = create_engine_and_session(config)
     app.state.session_factory: async_sessionmaker[AsyncSession] = session
     yield
     engine.dispose()
@@ -54,6 +59,18 @@ async def operation_error_handler(
     request: Request, exc: OperationalError
 ) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": "service unavailable"})
+
+
+@app.exception_handler(UserNotFoundError)
+async def user_not_found_handler(
+    request: Request, exc: UserNotFoundError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=404, content={"details": f"user {exc.user_id} not found"}
+    )
+
+
+app.include_router(user_router.router)
 
 
 @app.get("/")
