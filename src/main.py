@@ -74,16 +74,8 @@ async def user_not_found_handler(
 app.include_router(user_router.router)
 
 
-@app.get("/")
-async def root():
-    return {"message": "hello world"}
-
-
 @app.get("/health")
 async def health(uow: UnitOfWork = Depends(get_uow)):
     async with uow as u:
-        try:
-            await u.health.ping()
-            return JSONResponse(content={"status": "ok"}, status_code=200)
-        except Exception:
-            return JSONResponse(content={"status": "unavailable"}, status_code=503)
+        await u.health.ping()
+    return JSONResponse(content={"status": "ok"}, status_code=200)
