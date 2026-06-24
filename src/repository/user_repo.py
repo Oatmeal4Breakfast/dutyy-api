@@ -7,8 +7,8 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import update, delete, select
 
 from src.repository.abstract_repo import AbstractRepository, Operation
+from src.domain.user import UserSummary, User
 from src.db.orm import users_table, project_user_table
-from src.domain.user import User
 from src.domain.exceptions import UserAlreadyExistsError
 from src.logger import get_logger
 
@@ -28,15 +28,24 @@ class UserRepoErrorEvents(StrEnum):
     USER_DELETE_ERROR = auto()
 
 
-class UserRepo(AbstractRepository[User]):
+class UserRepo(AbstractRepository[User, UserSummary]):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_all(self, page: int = 1, page_size: int = 100) -> list[User]:
+    async def get_all(self, page: int = 1, page_size: int = 100) -> list[UserSummary]:
         offset_value: int = (page - 1) * page_size
 
         stmt: Select[Any] = (
-            select(users_table)
+            select(
+                users_table.c.first_name,
+                users_table.c.last_name,
+                users_table.c.email,
+                users_table.c.last_login,
+                users_table.c.modified_date,
+                users_table.c.created_date,
+                users_table.c.status,
+                users_table.c.id,
+            )
             .order_by(users_table.c.id)
             .limit(page_size)
             .offset(offset_value)
@@ -49,7 +58,7 @@ class UserRepo(AbstractRepository[User]):
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
-        return [User(**row) for row in rows]
+        return [UserSummary(**row) for row in rows]
 
     async def delete(self, entity: User) -> None:
         stmt: Delete = delete(users_table).where(users_table.c.id == entity.id)
@@ -106,9 +115,18 @@ class UserRepo(AbstractRepository[User]):
 
         return User(**row) if row is not None else None
 
-    async def get_users_by_project_id(self, project_id: UUID) -> list[User]:
+    async def get_users_by_project_id(self, project_id: UUID) -> list[UserSummary]:
         stmt: Select[Any] = (
-            select(users_table)
+            select(
+                users_table.c.first_name,
+                users_table.c.last_name,
+                users_table.c.email,
+                users_table.c.last_login,
+                users_table.c.modified_date,
+                users_table.c.created_date,
+                users_table.c.status,
+                users_table.c.id,
+            )
             .join(project_user_table, users_table.c.id == project_user_table.c.user_id)
             .where(project_user_table.c.project_id == project_id)
         )
@@ -120,4 +138,4 @@ class UserRepo(AbstractRepository[User]):
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
-        return [User(**row) for row in rows]
+        return [UserSummary(**row) for row in rows]
