@@ -9,9 +9,9 @@ class Operation(StrEnum):
     DELETE = auto()
 
 
-class AbstractRepository[T](ABC):
+class AbstractRepository[T, F = T](ABC):
     @abstractmethod
-    async def get_all(self) -> list[T]:
+    async def get_all(self) -> list[F]:
         raise NotImplementedError
 
     @abstractmethod
