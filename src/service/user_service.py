@@ -3,7 +3,7 @@ from src.domain.exceptions import DomainValidationError
 from typing import TYPE_CHECKING
 
 
-from src.domain.user import User, UserUpdateFields
+from src.domain.user import User, UserUpdateFields, UserSummary
 from src.db.uow import UnitOfWork
 from src.logger import get_logger
 
@@ -23,7 +23,12 @@ class UserService:
     def __init__(self, uow: UnitOfWork):
         self._uow = uow
 
-    async def create_user(self, fname: str, lname: str, email: str) -> User:
+    async def get_all_users(self, page: int, page_size: int) -> list[UserSummary]:
+        async with self._uow as uow:
+            users: list[User] = await uow.user.get_all(page=page, page_size=page_size)
+        return users
+
+    async def create_user(self, fname: str, lname: str, email: str) -> UserSummary:
         user = User.create(first_name=fname, last_name=lname, email=email)
         async with self._uow as uow:
             await uow.user.add(user)
@@ -31,17 +36,19 @@ class UserService:
         logger.info(
             event="user_created", user_id=str(user.id), created=user.created_date
         )
-        return user
+        return user.to_summary()
 
-    async def get_user_by_id(self, user_id: UUID) -> User:
+    async def get_user_by_id(self, user_id: UUID) -> UserSummary:
         async with self._uow as uow:
             user: User | None = await uow.user.get_by_id(user_id=user_id)
 
             if user is None:
                 raise UserNotFoundError(user_id)
-            return user
+        return user.to_summary()
 
-    async def update_user(self, user_id: UUID, changes: UserUpdateFields) -> User:
+    async def update_user(
+        self, user_id: UUID, changes: UserUpdateFields
+    ) -> UserSummary:
         errors: list[str] = []
         async with self._uow as uow:
             user: User | None = await uow.user.get_by_id(user_id)
@@ -85,9 +92,9 @@ class UserService:
             await uow.user.update(user)
             await uow.commit()
             logger.info(event="user_update_success", user_id=user_id)
-            return user
+            return user.to_summary()
 
-    async def update_password_hash(self, user_id: UUID, new_hash: str) -> User:
+    async def update_password_hash(self, user_id: UUID, new_hash: str) -> UserSummary:
         async with self._uow as uow:
             user: User | None = await uow.user.get_by_id(user_id)
 
@@ -100,4 +107,4 @@ class UserService:
             await uow.user.update(user)
             await uow.commit()
             logger.info(event="user_password_hash_updated", user_id=str(user_id))
-            return user
+        return user.to_summary()
