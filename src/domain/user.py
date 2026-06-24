@@ -24,6 +24,18 @@ class UserUpdateFields:
     status: UserStatus | None = None
 
 
+@dataclass(frozen=True)
+class UserSummary:
+    first_name: str
+    last_name: str
+    email: str
+    last_login: datetime | None
+    modified_date: datetime | None
+    created_date: datetime
+    status: UserStatus
+    id: UUID
+
+
 @dataclass
 class User:
     first_name: str
@@ -63,6 +75,18 @@ class User:
             self.email = _email.normalized
         except EmailNotValidError as e:
             raise DomainValidationError("User", [f"Invalid email: {e}"])
+
+    def to_summary(self) -> UserSummary:
+        return UserSummary(
+            self.first_name,
+            self.last_name,
+            self.email,
+            self.last_login,
+            self.modified_date,
+            self.created_date,
+            self.status,
+            self.id,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
