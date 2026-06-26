@@ -1,11 +1,11 @@
 import pytest
 from uuid import UUID
 
-from sqlalchemy.exc import IntegrityError
 
 from src.repository.user_repo import UserRepo
-from src.domain.user import User
+from src.domain.user import User, UserSummary
 from tests.conftest import make_user
+from src.domain.exceptions import UserAlreadyExistsError
 
 
 @pytest.mark.integration
@@ -35,15 +35,15 @@ class TestUserRepo:
 
         await repo.add(user_2)
 
-        results: list[User] = await repo.get_all()
+        results: list[UserSummary] = await repo.get_all()
 
         assert len(results) == 2
-        assert isinstance(results[0], User)
+        assert isinstance(results[0], UserSummary)
 
     async def test_retrieve_users_from_empty_table(self, session):
         repo = UserRepo(session)
 
-        results: list[User] = await repo.get_all()
+        results: list[UserSummary] = await repo.get_all()
 
         assert isinstance(results, list)
         assert len(results) == 0
@@ -73,7 +73,7 @@ class TestUserRepo:
         user: User = make_user()
         await repo.add(user)
 
-        with pytest.raises(IntegrityError):
+        with pytest.raises(UserAlreadyExistsError):
             user.first_name = None
             await repo.update(user)
 
@@ -99,7 +99,7 @@ class TestUserRepo:
         result = await repo.get_users_by_project_id(project.id)
 
         assert len(result) == 1
-        assert isinstance(result[0], User)
+        assert isinstance(result[0], UserSummary)
         assert result[0].id == user.id
 
     async def test_get_users_by_project_id_returns_empty_list(self, session, project):
