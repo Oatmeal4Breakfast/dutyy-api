@@ -12,6 +12,7 @@ from src.domain.exceptions import (
     UserAlreadyExistsError,
     ProjectAlreadyExistsError,
 )
+from src.bus.bus import EventBus
 from src.service.user_service import UserNotFoundError
 from src.db.db import create_engine_and_session
 from src.config import get_config, Config
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
     config_logger(config)
     engine, session = create_engine_and_session(config)
     app.state.session_factory: async_sessionmaker[AsyncSession] = session
+    app.state.event_bus: EventBus = EventBus()
     yield
     engine.dispose()
 
