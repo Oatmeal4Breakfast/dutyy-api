@@ -1,27 +1,30 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from uuid import UUID, uuid4
+from datetime import datetime, UTC
 
 if TYPE_CHECKING:
-    from uuid import UUID
     from datetime import datetime
     from src.domain.user import UserStatus
 
 
+@dataclass(frozen=True)
 class Event:
-    pass
+    event_id: UUID = field(default_factory=uuid4)
+    time_stamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
 class DutyyCompleted(Event):
-    id: UUID
+    duty_id: UUID
     created_date: datetime
     completed_date: datetime
 
 
 @dataclass(frozen=True)
 class ProjectCompleted(Event):
-    id: UUID
+    project_id: UUID
     created_date: datetime
     completed_date: datetime
 
