@@ -6,7 +6,9 @@ from typing import Any
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy import text
 
+from src.bus.bus import EventBus
 from src.db.orm import metadata
+from src.db.uow import AbstractUnitOfWork
 from src.repository.user_repo import UserRepo
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
@@ -15,8 +17,29 @@ from src.domain.user import User
 from src.domain.project import Project
 from src.domain.dutyy import Dutyy
 from src.domain.api import APIKey
+from src.service.user_service import UserService
+from src.repository.health_repo import HealthRepo
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
+
+
+class FakeUnitOfWork(AbstractUnitOfWork):
+    def __init__(self, session: AsyncSession, event_bus: EventBus) -> None:
+        self._raw_session = session
+        self.bus = event_bus
+
+    async def __aenter__(self) -> FakeUnitOfWork:
+        self._session = self._raw_session
+        self.dutyy = DutyRepo(self._session)
+        self.project = ProjectRepo(self._session)
+        self.user = UserRepo(self._session)
+        self.api = APIRepo(self._session)
+        self.health = HealthRepo(self._session)
+        return self
+
+    async def __aexit__(self, exc_type, *_) -> None:
+        if exc_type:
+            await self.rollback()
 
 
 def make_user(**kwargs) -> User:
@@ -48,6 +71,10 @@ def make_api_key(user_id: UUID, **kwargs) -> APIKey:
 def make_dutyy(project_id: UUID, **kwargs) -> Dutyy:
     defaults: dict[str, Any] = {"title": "Test Dutyy", "project_id": project_id}
     return Dutyy(**{**defaults, **kwargs})
+
+
+def make_user_service(uow) -> UserService:
+    return UserService(uow)
 
 
 @pytest.fixture(scope="session")
@@ -109,3 +136,13 @@ async def dutyy(session, project) -> Dutyy:
     d = make_dutyy(project.id)
     await dutyy_repo.add(d)
     return d
+
+
+@pytest.fixture
+async def event_bus() -> EventBus:
+    return EventBus()
+
+
+@pytest.fixture
+async def uow(session, event_bus) -> FakeUnitOfWork:
+    return FakeUnitOfWork(session, event_bus)
