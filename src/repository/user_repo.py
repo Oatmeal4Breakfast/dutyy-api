@@ -31,6 +31,7 @@ class UserRepoErrorEvents(StrEnum):
 class UserRepo(AbstractRepository[User, UserSummary]):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self.seen: set[User] = set()
 
     async def get_all(self, page: int = 1, page_size: int = 100) -> list[UserSummary]:
         offset_value: int = (page - 1) * page_size
@@ -61,6 +62,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         return [UserSummary(**row) for row in rows]
 
     async def delete(self, entity: User) -> None:
+        self.seen.add(entity)
         stmt: Delete = delete(users_table).where(users_table.c.id == entity.id)
 
         try:
@@ -74,6 +76,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             raise
 
     async def add(self, entity: User) -> None:
+        self.seen.add(entity)
         self._session.add(entity)
 
         try:
@@ -90,6 +93,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             raise
 
     async def update(self, entity: User) -> None:
+        self.seen.add(entity)
         data: dict[str, Any] = entity.to_dict()
         stmt = update(users_table).where(users_table.c.id == entity.id).values(**data)
         try:
@@ -113,7 +117,13 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
         row: RowMapping | None = result.mappings().one_or_none()
 
-        return User(**row) if row is not None else None
+        if row is None:
+            return
+
+        user: User = User(**row)
+        self.seen.add(user)
+
+        return user
 
     async def get_users_by_project_id(self, project_id: UUID) -> list[UserSummary]:
         stmt: Select[Any] = (
