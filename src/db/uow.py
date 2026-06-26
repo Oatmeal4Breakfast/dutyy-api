@@ -1,6 +1,6 @@
 from __future__ import annotations
 import asyncio
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from src.bus.bus import EventBus
@@ -19,39 +19,21 @@ logger = get_logger(__name__)
 
 
 class AbstractUnitOfWork(ABC):
-    def __init__(self, *args, **kwargs) -> None:
-        pass
+    bus: EventBus
+    dutyy: DutyRepo
+    project: ProjectRepo
+    user: UserRepo
+    api: APIRepo
+    health: HealthRepo
+    _session: AsyncSession
 
-    async def __aenter__(self):
-        pass
+    @abstractmethod
+    async def __aenter__(self) -> AbstractUnitOfWork: ...
 
-    async def __aexit__(self, exc_type):
-        pass
+    @abstractmethod
+    async def __aexit__(self, exc_type, *_) -> None: ...
 
-
-class UnitOfWork(AbstractUnitOfWork):
-    def __init__(
-        self, session_factory: async_sessionmaker[AsyncSession], event_bus: EventBus
-    ):
-        self._session_factory = session_factory
-        self.bus = event_bus
-
-    async def __aenter__(self):
-        self._session: AsyncSession = self._session_factory()
-        self.dutyy = DutyRepo(self._session)
-        self.project = ProjectRepo(self._session)
-        self.user = UserRepo(self._session)
-        self.api = APIRepo(self._session)
-        self.health = HealthRepo(self._session)
-        return self
-
-    async def __aexit__(self, exc_type, *_) -> None:
-        if exc_type:
-            logger.warning(event="uow_rollback", reason=str(exc_type))
-            await self.rollback()
-        await self._session.close()
-
-    async def publish_events(self):
+    async def publish_events(self) -> None:
         registered_repos: list = [self.dutyy, self.project, self.user, self.api]
         events: list[Event] = []
 
@@ -72,3 +54,26 @@ class UnitOfWork(AbstractUnitOfWork):
 
     async def rollback(self) -> None:
         await self._session.rollback()
+
+
+class UnitOfWork(AbstractUnitOfWork):
+    def __init__(
+        self, session_factory: async_sessionmaker[AsyncSession], event_bus: EventBus
+    ):
+        self._session_factory = session_factory
+        self.bus = event_bus
+
+    async def __aenter__(self) -> UnitOfWork:
+        self._session = self._session_factory()
+        self.dutyy = DutyRepo(self._session)
+        self.project = ProjectRepo(self._session)
+        self.user = UserRepo(self._session)
+        self.api = APIRepo(self._session)
+        self.health = HealthRepo(self._session)
+        return self
+
+    async def __aexit__(self, exc_type, *_) -> None:
+        if exc_type:
+            logger.warning(event="uow_rollback", reason=str(exc_type))
+            await self.rollback()
+        await self._session.close()

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 
 from src.domain.user import User, UserUpdateFields, UserSummary
-from src.db.uow import UnitOfWork
+from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -20,23 +20,28 @@ class UserNotFoundError(Exception):
 
 
 class UserService:
-    def __init__(self, uow: UnitOfWork):
+    def __init__(self, uow: AbstractUnitOfWork):
         self._uow = uow
 
-    async def get_all_users(self, page: int, page_size: int) -> list[UserSummary]:
+    async def get_all_users(
+        self, page: int = 1, page_size: int = 100
+    ) -> list[UserSummary]:
         async with self._uow as uow:
-            users: list[User] = await uow.user.get_all(page=page, page_size=page_size)
+            users: list[UserSummary] = await uow.user.get_all(
+                page=page, page_size=page_size
+            )
         return users
 
     async def create_user(self, fname: str, lname: str, email: str) -> UserSummary:
         user = User.create(first_name=fname, last_name=lname, email=email)
         async with self._uow as uow:
             await uow.user.add(user)
+            user = user.to_summary()
             await uow.commit()
         logger.info(
             event="user_created", user_id=str(user.id), created=user.created_date
         )
-        return user.to_summary()
+        return user
 
     async def get_user_by_id(self, user_id: UUID) -> UserSummary:
         async with self._uow as uow:
