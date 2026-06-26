@@ -11,8 +11,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class Event:
-    event_id: UUID = field(default_factory=uuid4)
-    time_stamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    event_id: UUID = field(default_factory=uuid4, kw_only=True)
+    time_stamp: datetime = field(
+        default_factory=lambda: datetime.now(UTC), kw_only=True
+    )
 
 
 @dataclass(frozen=True)

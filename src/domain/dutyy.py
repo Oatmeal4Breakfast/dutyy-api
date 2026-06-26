@@ -52,7 +52,7 @@ class Dutyy:
         self.completed_date = datetime.now(UTC)
         self.events.append(
             DutyyCompleted(
-                id=self.id,
+                duty_id=self.id,
                 created_date=self.created_date,
                 completed_date=self.completed_date,
             )

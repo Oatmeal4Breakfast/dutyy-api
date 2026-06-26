@@ -171,4 +171,4 @@ def test_update_status_complete_sets_completed_date_and_event() -> None:
     assert time_diff < timedelta(seconds=1)
     assert len(dutyy.events) == 1
     assert isinstance(dutyy.events[0], DutyyCompleted)
-    assert dutyy.events[0].id == dutyy.id
+    assert dutyy.events[0].duty_id == dutyy.id

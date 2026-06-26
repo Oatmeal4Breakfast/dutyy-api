@@ -149,3 +149,6 @@ class User:
                 reqested_date=mod_date,
             )
         )
+
+    def __hash__(self):
+        return hash(self.id)
