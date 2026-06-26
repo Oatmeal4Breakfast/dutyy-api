@@ -23,22 +23,16 @@ class EventBus:
     def __init__(self) -> None:
         self._handlers: dict[type[Event], list[EventHandler]] = {}
 
-    def subscribe(self, event_type: type[Event]):
-        def decorator(func):
-            if event_type not in self._handlers:
-                self._handlers[event_type] = []
-            self._handlers[event_type].append(func)
-            return func
-
+    def subscribe(self, event_type: type[Event], handler: EventHandler):
+        if event_type not in self._handlers:
+            self._handlers[event_type] = []
+        self._handlers[event_type].append(handler)
         logger.info(event="new_event_handler_registered", type=event_type)
-        return decorator
 
-    def unsubscribe(self, event: Event, handler: EventHandler) -> None:
-        if event in self._handlers and handler in self._handlers[type(event)]:
-            self._handlers[type(event)].remove(handler)
-        logger.info(
-            event="handler_unsubscribed_from_event", event_type=type(event).__name__
-        )
+    def unsubscribe(self, event_type: type[Event], handler: EventHandler) -> None:
+        if event_type in self._handlers and handler in self._handlers[event_type]:
+            self._handlers[event_type].remove(handler)
+        logger.info(event="handler_unsubscribed_from_event", event_type=event_type)
 
     async def publish(self, event: Event) -> None:
         handlers: list[EventHandler] = self._handlers.get(type(event), []).copy()
