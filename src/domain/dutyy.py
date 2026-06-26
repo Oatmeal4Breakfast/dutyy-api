@@ -95,3 +95,6 @@ class Dutyy:
             return
         self.details = normalized
         self._touch()
+
+    def __hash__(self):
+        return hash(self.id)

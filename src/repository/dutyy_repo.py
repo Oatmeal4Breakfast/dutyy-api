@@ -29,6 +29,7 @@ class DutyyRepoErrorEvents(StrEnum):
 class DutyRepo(AbstractRepository[Dutyy]):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self.seen: set[Dutyy] = set()
 
     async def get_all(self, page: int = 1, page_size: int = 100) -> list[Dutyy]:
         offset_value = (page - 1) * page_size
@@ -55,6 +56,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             await self._session.execute(stmt)
             await self._session.flush()
+            self.seen.add(entity)
         except OperationalError:
             logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.DELETE)
             raise
@@ -64,6 +66,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
 
         try:
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=DutyyRepoErrorEvents.DUTYY_ADD_ERROR,
@@ -82,6 +85,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             await self._session.execute(stmt)
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=DutyyRepoErrorEvents.DUTYY_UPDATE_ERROR,

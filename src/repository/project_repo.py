@@ -30,6 +30,7 @@ class ProjectRepoErrorEvents(StrEnum):
 class ProjectRepo(AbstractRepository[Project]):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self.seen: set[Project] = set()
 
     async def get_all(self, page: int = 1, page_size: int = 100) -> list[Project]:
         offset_value: int = (page - 1) * page_size
@@ -58,6 +59,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             await self._session.execute(delete_stmt)
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=ProjectRepoErrorEvents.PROJECT_DELETE_ERROR, project_id=entity.id
@@ -79,6 +81,7 @@ class ProjectRepo(AbstractRepository[Project]):
             await self._session.flush()
             await self._session.execute(stmt)
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError as e:
             logger.error(
                 event=ProjectRepoErrorEvents.PROJECT_ADD_CONFLICT,
@@ -101,6 +104,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             await self._session.execute(stmt)
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError as e:
             logger.error(
                 event=ProjectRepoErrorEvents.PROJECT_UPDATE_ERROR, project_id=entity.id
@@ -125,7 +129,13 @@ class ProjectRepo(AbstractRepository[Project]):
 
         row: RowMapping | None = result.mappings().one_or_none()
 
-        return Project(**row) if row is not None else None
+        if row is None:
+            return
+
+        project = Project(**row)
+        self.seen.add(project)
+
+        return project
 
     async def search_by_name(self, project_name: str, owner_id: UUID) -> list[Project]:
         stmt: Select[Any] = (

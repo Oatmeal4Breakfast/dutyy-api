@@ -124,3 +124,6 @@ class Project:
         self.owner_id = owner_id
         self._touch()
         self.events.append(OwnershipTransferred(project_id=self.id, new_owner=owner_id))
+
+    def __hash__(self):
+        return hash(self.id)

@@ -26,6 +26,7 @@ class APIRepoErrorEvents(StrEnum):
 class APIRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+        self.seen: set[APIKey] = set()
 
     async def get_by_user_id(self, user_id: UUID) -> list[APIKey]:
         stmt: Select[Any] = select(api_key_table).where(
@@ -47,6 +48,7 @@ class APIRepo:
 
         try:
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=APIRepoErrorEvents.API_ADD_CONFLICT,
@@ -67,6 +69,7 @@ class APIRepo:
         try:
             await self._session.execute(stmt)
             await self._session.flush()
+            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=APIRepoErrorEvents.API_UPDATE_ERROR,

@@ -40,3 +40,6 @@ class APIKey:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    def __hash__(self):
+        return hash(self.id)
