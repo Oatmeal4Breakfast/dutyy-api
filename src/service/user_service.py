@@ -20,7 +20,7 @@ class UserNotFoundError(Exception):
 
 
 class UserService:
-    def __init__(self, uow: AbstractUnitOfWork):
+    def __init__(self, uow: AbstractUnitOfWork) -> None:
         self._uow = uow
 
     async def get_all_users(
