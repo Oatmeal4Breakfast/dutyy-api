@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio.session import async_sessionmaker, AsyncSession
 
 
-def get_event_bus(request) -> EventBus:
+def get_event_bus(request: Request) -> EventBus:
     return request.app.state.event_bus
 
 
