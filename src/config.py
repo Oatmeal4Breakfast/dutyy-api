@@ -41,6 +41,7 @@ class AuthServiceConfig(BaseSettings):
     )
     secret: str = Field(default_factory=lambda: secrets.token_hex(16))
     expire_time: timedelta = Field(default_factory=lambda: timedelta(minutes=15))
+    algorithm: str = "HS256"
 
 
 def get_config() -> Config:
