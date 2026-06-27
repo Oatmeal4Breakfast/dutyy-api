@@ -149,3 +149,15 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
         rows: Sequence[RowMapping] = results.mappings().all()
         return [UserSummary(**row) for row in rows]
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        stmt: Select[Any] = select(users_table).where(users_table.c.email == email)
+
+        try:
+            result: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+
+        row: RowMapping | None = result.mappings().one_or_none()
+
+        return User(**row) if row is not None else None
