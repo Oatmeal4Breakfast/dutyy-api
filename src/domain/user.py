@@ -41,7 +41,6 @@ class User:
     last_name: str
     email: str
     password_hash: str | None = None
-    salt: str | None = None
     last_login: datetime | None = None
     modified_date: datetime | None = None
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -141,14 +140,14 @@ class User:
     def update_password_hash(self, password_hash: str) -> None:
         self.password_hash = password_hash
         mod_date = self._touch()
-        self.events.append(
-            UserPasswordReset(
+        if self.password_hash is not None:
+            event = UserPasswordReset(
                 user_id=self.id,
                 email=self.email,
                 full_name=self.full_name,
                 reqested_date=mod_date,
             )
-        )
+            self.events.append(event)
 
     def __hash__(self):
         return hash(self.id)
