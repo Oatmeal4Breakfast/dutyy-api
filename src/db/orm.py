@@ -55,6 +55,7 @@ users_table = Table(
     Column("created_date", DateTime(timezone=True), nullable=False),
     Column("last_login", DateTime(timezone=True), nullable=True),
     Column("password_hash", String, nullable=True),
+    Column("salt", String, nullable=True),
     Column("modified_date", DateTime(timezone=True), nullable=True),
     Column("status", Enum(UserStatus), nullable=False),
     Column("id", UUID, primary_key=True),

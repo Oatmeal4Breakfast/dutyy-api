@@ -41,6 +41,7 @@ class User:
     last_name: str
     email: str
     password_hash: str | None = None
+    salt: str | None = None
     last_login: datetime | None = None
     modified_date: datetime | None = None
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
