@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Annotated
 from uuid import UUID
 from datetime import datetime
 
@@ -46,19 +47,17 @@ class UserResponse(BaseModel):
 
 router = APIRouter(prefix="/dutyy/api/v1", tags=["Users"])
 
+UsrService = Annotated[UserService, Depends(get_user_service)]
+
 
 @router.get(path="/users/{user_id}", response_model=UserResponse)
-async def get_user_by_id(
-    user_id: UUID, service: UserService = Depends(get_user_service)
-) -> UserResponse:
+async def get_user_by_id(user_id: UUID, service: UsrService) -> UserResponse:
     user: UserSummary = await service.get_user_by_id(user_id)
     return UserResponse.model_validate(user)
 
 
 @router.post(path="/users", response_model=UserResponse)
-async def create_user(
-    user: CreateUserRequest, service: UserService = Depends(get_user_service)
-) -> UserResponse:
+async def create_user(user: CreateUserRequest, service: UsrService) -> UserResponse:
     new_user: UserSummary = await service.create_user(
         fname=user.first_name, lname=user.last_name, email=user.email
     )
@@ -67,9 +66,9 @@ async def create_user(
 
 @router.get(path="/users", response_model=list[UserResponse])
 async def get_all_users(
+    service: UsrService,
     page: int = 1,
     page_size: int = 100,
-    service: UserService = Depends(get_user_service),
 ) -> list[UserResponse]:
     users: list[UserSummary] = await service.get_all_users(
         page=page, page_size=page_size
@@ -81,7 +80,7 @@ async def get_all_users(
 async def update_user(
     user_id: UUID,
     payload: UserUpdateRequest,
-    service: UserService = Depends(get_user_service),
+    service: UsrService,
 ) -> UserResponse:
     if payload.is_empty:
         raise HTTPException(status_code=400, detail="no fields provided to update")
@@ -92,7 +91,6 @@ async def update_user(
             UserUpdateFields(
                 first_name=payload.first_name,
                 last_name=payload.last_name,
-                email=payload.email,
                 status=payload.status,
             )
         ),
