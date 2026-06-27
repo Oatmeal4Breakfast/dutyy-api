@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 class UserNotFoundError(Exception):
-    def __init__(self, user_id: UUID) -> None:
+    def __init__(self, user_id: UUID | str) -> None:
         self.user_id = user_id
         super().__init__(f"user with id {user_id} not found")
 
