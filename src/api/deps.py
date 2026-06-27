@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from fastapi import Request, Depends
+from fastapi.security import OAuth2PasswordBearer
 
 from src.db.uow import UnitOfWork
 from src.service.user_service import UserService
@@ -8,6 +9,8 @@ from src.bus.bus import EventBus
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio.session import async_sessionmaker, AsyncSession
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def get_event_bus(request: Request) -> EventBus:
