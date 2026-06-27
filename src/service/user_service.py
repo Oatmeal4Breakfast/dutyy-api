@@ -1,8 +1,8 @@
 from __future__ import annotations
-from src.domain.exceptions import DomainValidationError
 from typing import TYPE_CHECKING
 
 
+from src.domain.exceptions import DomainValidationError
 from src.domain.user import User, UserUpdateFields, UserSummary
 from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
@@ -71,12 +71,6 @@ class UserService:
             if changes.last_name is not None:
                 try:
                     user.update_last_name(changes.last_name)
-                except DomainValidationError as e:
-                    errors.extend(e.errors)
-
-            if changes.email is not None:
-                try:
-                    user.update_email(changes.email)
                 except DomainValidationError as e:
                     errors.extend(e.errors)
 
