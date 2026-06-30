@@ -14,8 +14,9 @@ from src.domain.exceptions import (
 )
 from src.bus.bus import EventBus
 from src.service.user_service import UserNotFoundError
+from src.service.auth_service import AuthService
 from src.db.db import create_engine_and_session
-from src.config import get_config, Config
+from src.config import get_config, get_auth_service_config, AuthServiceConfig, Config
 from src.logger import config_logger
 
 if TYPE_CHECKING:
@@ -25,12 +26,16 @@ if TYPE_CHECKING:
 
 async def lifespan(app: FastAPI):
     config: Config = get_config()
+    auth_config: AuthServiceConfig = get_auth_service_config()
     config_logger(config)
     engine, session = create_engine_and_session(config)
     app.state.session_factory: async_sessionmaker[AsyncSession] = session
     app.state.event_bus: EventBus = EventBus()
+    app.state.auth_service = AuthService(
+        app.state.session_factory, app.state.event_bus, auth_config
+    )
     yield
-    engine.dispose()
+    await engine.dispose()
 
 
 app = FastAPI(title="dutyy-api", lifespan=lifespan)
