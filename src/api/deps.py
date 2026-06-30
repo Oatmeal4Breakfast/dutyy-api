@@ -5,7 +5,9 @@ from fastapi.security import OAuth2PasswordBearer
 
 from src.db.uow import UnitOfWork
 from src.service.user_service import UserService
+from src.service.auth_service import AuthService
 from src.bus.bus import EventBus
+from src.config import get_auth_service_config
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio.session import async_sessionmaker, AsyncSession
@@ -30,3 +32,15 @@ def get_uow(
 
 def get_user_service(uow: UnitOfWork = Depends(get_uow)) -> UserService:
     return UserService(uow)
+
+
+def get_auth_service(
+    event_bus: EventBus = Depends(get_event_bus),
+    session: async_sessionmaker = Depends(get_session_factory),
+    auth_service_config=Depends(get_auth_service_config),
+) -> AuthService:
+    return AuthService(
+        session_factory=session,
+        event_bus=event_bus,
+        auth_service_config=auth_service_config,
+    )

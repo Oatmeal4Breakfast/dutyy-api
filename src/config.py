@@ -44,9 +44,21 @@ class AuthServiceConfig(BaseSettings):
     algorithm: str = "HS256"
 
 
+class EmailServiceConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=False, env_file_encoding="utf-8", extra="ignore"
+    )
+    resend_api_key: str
+    sender_email: str
+
+
 def get_config() -> Config:
     return Config()
 
 
 def get_auth_service_config() -> AuthServiceConfig:
     return AuthServiceConfig()
+
+
+def get_email_service_config() -> EmailServiceConfig:
+    return EmailServiceConfig
