@@ -8,6 +8,7 @@ sync:
   uv sync
 
 test *args:
+    docker compose -f docker-compose.test.yml down --remove-orphans
     docker compose -f docker-compose.test.yml up -d --wait
     -uv run pytest {{args}}
     docker compose -f docker-compose.test.yml down
