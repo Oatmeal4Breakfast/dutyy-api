@@ -45,7 +45,8 @@ class AuthService:
         event_bus: EventBus,
         auth_service_config: AuthServiceConfig,
     ) -> None:
-        self._uow = UnitOfWork(session_factory, event_bus)
+        self._session: async_sessionmaker[AsyncSession] = session_factory
+        self._bus: EventBus = event_bus
         self._valid_characters: LiteralString = (
             string.ascii_letters + string.digits + string.punctuation
         )
@@ -67,7 +68,7 @@ class AuthService:
         plain_password: str = self._generate_random_password()
         hashed_password: str = self._hash_password(plain_password)
 
-        async with self._uow as uow:
+        async with UnitOfWork(self._session, self._bus) as uow:
             user: User | None = await uow.user.get_by_id(event.user_id)
 
             if user is None:
@@ -77,6 +78,7 @@ class AuthService:
             user.events.append(
                 PasswordHashCreated(
                     user_id=user.id,
+                    first_name=user.first_name,
                     user_email=user.email,
                     plain_text_password=plain_password,
                 )
