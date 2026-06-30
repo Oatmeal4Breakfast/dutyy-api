@@ -16,6 +16,7 @@ dependencies = [
     "pyjwt>=2.13.0",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
+    "resend[async]>=2.32.2",
     "sqlalchemy[asyncio]>=2.0.50",
     "structlog>=25.5.0",
 ]
