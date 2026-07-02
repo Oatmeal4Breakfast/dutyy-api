@@ -67,7 +67,7 @@ class EventBus:
         deadline: int | float = loop.time() - timeout
 
         while self._tasks:
-            remaining: int | float = deadline - loop.time()
+            remaining: int | float = deadline + loop.time()
             if remaining <= 0.0:
                 break
 
