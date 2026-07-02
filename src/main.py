@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Depends, Request
@@ -50,6 +51,7 @@ async def lifespan(app: FastAPI):
     bus.subscribe(UserCreated, auth_service.handle_user_created)
     bus.subscribe(PasswordHashCreated, email_service.send_welcome_email)
     yield
+    await bus.drain()
     await engine.dispose()
 
 

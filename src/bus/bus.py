@@ -62,13 +62,34 @@ class EventBus:
                 functools.partial(self._on_done, handler=handler, event=event)
             )
 
+    async def drain(self, timeout: float = 10) -> None:
+        loop = asyncio.get_event_loop()
+        deadline: int | float = loop.time() - timeout
+
+        while self._tasks:
+            remaining: int | float = deadline - loop.time()
+            if remaining <= 0.0:
+                break
+
+            pending = self._tasks.copy()
+            logger.warning(event="draining_events", count=len(pending))
+            await asyncio.wait(pending, timeout=remaining)
+            await asyncio.sleep(0)
+
+        if self._tasks:
+            abandoned = self._tasks.copy()
+            logger.warn(event="cancelling_tasks", count=len(abandoned))
+            for task in abandoned:
+                task.cancel()
+            await asyncio.gather(*abandoned, return_exceptions=True)
+
     def _on_done(self, task: asyncio.Task, handler: Callable, event: Event) -> None:
         self._tasks.discard(task)
 
         if task.cancelled():
             logger.warning(
                 event="handler_cancelled",
-                callback=getattr(handler, __name__, "unknown"),
+                callback=getattr(handler, "__name__", "unknown"),
             )
             return
 
@@ -76,7 +97,7 @@ class EventBus:
         if exec is not None:
             logger.error(
                 event="handler_error",
-                callback=getattr(handler, __name__, "unknown"),
+                callback=getattr(handler, "__name__", "unknown"),
                 event_name=type(event).__name__,
                 err=str(exec),
             )
