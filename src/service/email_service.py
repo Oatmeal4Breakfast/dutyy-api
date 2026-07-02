@@ -2,8 +2,7 @@ from __future__ import annotations
 import resend
 from typing import cast
 
-from src.domain.events import PasswordHashCreated, UserCreated
-from src.domain.user import User
+from src.domain.events import PasswordHashCreated
 from src.config import EmailServiceConfig
 from src.logger import get_logger
 
@@ -12,7 +11,9 @@ logger = get_logger(__name__)
 
 class EmailService:
     def __init__(self, email_service_config: EmailServiceConfig):
-        self._api_key: str = email_service_config.resend_api_key
+        resend.api_key: str = email_service_config.resend_api_key
+        if not resend.api_key:
+            raise ValueError("resend_api_key is not set")
         self.from_addr: str = email_service_config.sender_email
 
     def build_welcome_email(self, user_name: str, temporary_password: str) -> str:
