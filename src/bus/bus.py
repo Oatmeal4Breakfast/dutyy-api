@@ -1,4 +1,5 @@
 from __future__ import annotations
+import functools
 
 import asyncio
 from typing import Protocol, Callable, TYPE_CHECKING, Awaitable
@@ -24,6 +25,7 @@ class EventBusProtocol(Protocol):
 class EventBus:
     def __init__(self) -> None:
         self._handlers: dict[type[Event], list[Callable]] = {}
+        self._tasks: set[asyncio.Task] = set()
 
     def subscribe[E: Event](
         self, event_type: type[E], handler: Callable[[E], Awaitable]
@@ -53,6 +55,28 @@ class EventBus:
             handler_count=len(handlers),
         )
 
-        tasks: list[Awaitable] = [handler(event) for handler in handlers]
+        for handler in handlers:
+            task = asyncio.create_task(handler(event))
+            self._tasks.add(task)
+            task.add_done_callback(
+                functools.partial(self._on_done, handler=handler, event=event)
+            )
 
-        await asyncio.gather(*tasks)
+    def _on_done(self, task: asyncio.Task, handler: Callable, event: Event) -> None:
+        self._tasks.discard(task)
+
+        if task.cancelled():
+            logger.warning(
+                event="handler_cancelled",
+                callback=getattr(handler, __name__, "unknown"),
+            )
+            return
+
+        exec = task.exception()
+        if exec is not None:
+            logger.error(
+                event="handler_error",
+                callback=getattr(handler, __name__, "unknown"),
+                event_name=type(event).__name__,
+                err=str(exec),
+            )
