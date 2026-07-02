@@ -61,4 +61,4 @@ def get_auth_service_config() -> AuthServiceConfig:
 
 
 def get_email_service_config() -> EmailServiceConfig:
-    return EmailServiceConfig
+    return EmailServiceConfig()
