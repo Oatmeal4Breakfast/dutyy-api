@@ -57,7 +57,7 @@ class APIRepo:
             )
             raise
         except OperationalError:
-            logger.error(event=APIRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=APIRepoErrorEvents.DB_UNAVAILABLE, op=Operation.ADD)
             raise
 
     async def update(self, entity: APIKey) -> None:
