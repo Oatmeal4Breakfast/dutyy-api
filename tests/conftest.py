@@ -9,16 +9,19 @@ from sqlalchemy import text
 from src.bus.bus import EventBus
 from src.db.orm import metadata
 from src.db.uow import AbstractUnitOfWork
+
 from src.repository.user_repo import UserRepo
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
+from src.repository.health_repo import HealthRepo
 from src.repository.api_repo import APIRepo
+from src.repository.token_repo import PasswordSetTokenRepo
+
 from src.domain.user import User
 from src.domain.project import Project
 from src.domain.dutyy import Dutyy
 from src.domain.api import APIKey
 from src.service.user_service import UserService
-from src.repository.health_repo import HealthRepo
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
 
@@ -35,6 +38,7 @@ class FakeUnitOfWork(AbstractUnitOfWork):
         self.user = UserRepo(self._session)
         self.api = APIRepo(self._session)
         self.health = HealthRepo(self._session)
+        self.token = PasswordSetTokenRepo(self._session)
         return self
 
     async def __aexit__(self, exc_type, *_) -> None:
