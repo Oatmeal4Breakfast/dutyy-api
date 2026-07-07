@@ -1,11 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
-from enum import StrEnum, auto
 
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import select, update, delete, insert
 
-from src.repository.abstract_repo import AbstractRepository, Operation
+from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 from src.db.orm import projects_table, project_user_table
 from src.domain.project import Project
 from src.domain.exceptions import ProjectAlreadyExistsError
@@ -18,13 +17,6 @@ if TYPE_CHECKING:
 
 
 logger = get_logger(__name__)
-
-
-class ProjectRepoErrorEvents(StrEnum):
-    DB_UNAVAILBLE = auto()
-    PROJECT_ADD_CONFLICT = auto()
-    PROJECT_UPDATE_ERROR = auto()
-    PROJECT_DELETE_ERROR = auto()
 
 
 class ProjectRepo(AbstractRepository[Project]):
@@ -45,7 +37,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -62,13 +54,13 @@ class ProjectRepo(AbstractRepository[Project]):
             self.seen.add(entity)
         except IntegrityError:
             logger.error(
-                event=ProjectRepoErrorEvents.PROJECT_DELETE_ERROR, project_id=entity.id
+                event=RepoError.INTEGRITY_CONFLICT,
+                op=Operation.DELETE,
+                project_id=entity.id,
             )
             raise
         except OperationalError:
-            logger.error(
-                event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.DELETE
-            )
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.DELETE)
             raise
 
     async def add(self, entity: Project) -> None:
@@ -84,12 +76,13 @@ class ProjectRepo(AbstractRepository[Project]):
             self.seen.add(entity)
         except IntegrityError as e:
             logger.error(
-                event=ProjectRepoErrorEvents.PROJECT_ADD_CONFLICT,
+                event=RepoError.INTEGRITY_CONFLICT,
+                op=Operation.ADD,
                 project_id=entity.id,
             )
             raise ProjectAlreadyExistsError(entity.name) from e
         except OperationalError:
-            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.ADD)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.ADD)
             raise
 
     async def update(self, entity: Project) -> None:
@@ -107,13 +100,13 @@ class ProjectRepo(AbstractRepository[Project]):
             self.seen.add(entity)
         except IntegrityError as e:
             logger.error(
-                event=ProjectRepoErrorEvents.PROJECT_UPDATE_ERROR, project_id=entity.id
+                event=RepoError.INTEGRITY_CONFLICT,
+                op=Operation.UPDATE,
+                project_id=entity.id,
             )
             raise ProjectAlreadyExistsError(entity.name) from e
         except OperationalError:
-            logger.error(
-                event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.UPDATE
-            )
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
 
     async def get_by_id(self, project_id: UUID) -> Project | None:
@@ -124,7 +117,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             result: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         row: RowMapping | None = result.mappings().one_or_none()
@@ -147,7 +140,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -162,7 +155,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -182,7 +175,7 @@ class ProjectRepo(AbstractRepository[Project]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=ProjectRepoErrorEvents.DB_UNAVAILBLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()

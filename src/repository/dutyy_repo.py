@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
-from enum import StrEnum, auto
 
 from sqlalchemy import select, update, delete
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repo import AbstractRepository, Operation
+from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 from src.db.orm import dutyy_table, project_user_table
 from src.domain.dutyy import Dutyy
 from src.logger import get_logger
@@ -17,13 +16,6 @@ if TYPE_CHECKING:
     from sqlalchemy import Select, RowMapping, Result
 
 logger = get_logger(__name__)
-
-
-class DutyyRepoErrorEvents(StrEnum):
-    DB_UNAVAILABLE = auto()
-    DUTYY_ADD_ERROR = auto()
-    DUTYY_UPDATE_ERROR = auto()
-    DUTYY_DELETE_ERROR = auto()
 
 
 class DutyRepo(AbstractRepository[Dutyy]):
@@ -44,7 +36,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -58,7 +50,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
             await self._session.flush()
             self.seen.add(entity)
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.DELETE)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.DELETE)
             raise
 
     async def add(self, entity: Dutyy) -> None:
@@ -69,13 +61,13 @@ class DutyRepo(AbstractRepository[Dutyy]):
             self.seen.add(entity)
         except IntegrityError:
             logger.error(
-                event=DutyyRepoErrorEvents.DUTYY_ADD_ERROR,
+                event=RepoError.INTEGRITY_CONFLICT,
                 op=Operation.ADD,
                 dutyy_id=entity.id,
             )
             raise
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.ADD)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.ADD)
             raise
 
     async def update(self, entity: Dutyy) -> None:
@@ -88,13 +80,13 @@ class DutyRepo(AbstractRepository[Dutyy]):
             self.seen.add(entity)
         except IntegrityError:
             logger.error(
-                event=DutyyRepoErrorEvents.DUTYY_UPDATE_ERROR,
+                event=RepoError.INTEGRITY_CONFLICT,
                 op=Operation.UPDATE,
                 dutyy_id=entity.id,
             )
             raise
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.UPDATE)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
 
     async def get_by_id(self, dutyy_id: UUID) -> Dutyy | None:
@@ -103,7 +95,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             result: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         row: RowMapping | None = result.mappings().one_or_none()
@@ -124,7 +116,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -139,7 +131,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=DutyyRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()

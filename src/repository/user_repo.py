@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
-from enum import StrEnum, auto
 
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import update, delete, select
 
-from src.repository.abstract_repo import AbstractRepository, Operation
+from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 from src.domain.user import UserSummary, User
 from src.db.orm import users_table, project_user_table
 from src.domain.exceptions import UserAlreadyExistsError
@@ -19,13 +18,6 @@ if TYPE_CHECKING:
 
 
 logger = get_logger(__name__)
-
-
-class UserRepoErrorEvents(StrEnum):
-    DB_UNAVAILABLE = auto()
-    USER_ADD_CONFLICT = auto()
-    USER_UPDATE_ERROR = auto()
-    USER_DELETE_ERROR = auto()
 
 
 class UserRepo(AbstractRepository[User, UserSummary]):
@@ -55,7 +47,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -69,10 +61,14 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             await self._session.execute(stmt)
             await self._session.flush()
         except IntegrityError:
-            logger.error(event=UserRepoErrorEvents.USER_DELETE_ERROR, user_id=entity.id)
+            logger.error(
+                event=RepoError.INTEGRITY_CONFLICT,
+                op=Operation.DELETE,
+                user_id=entity.id,
+            )
             raise
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.DELETE)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.DELETE)
             raise
 
     async def add(self, entity: User) -> None:
@@ -83,13 +79,14 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             await self._session.flush()
         except IntegrityError as e:
             logger.error(
-                event=UserRepoErrorEvents.USER_ADD_CONFLICT,
+                event=RepoError.INTEGRITY_CONFLICT,
+                op=Operation.ADD,
                 user_id=entity.id,
                 user_name=entity.full_name,
             )
             raise UserAlreadyExistsError(entity.email) from e
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.ADD)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.ADD)
             raise
 
     async def update(self, entity: User) -> None:
@@ -100,10 +97,14 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             await self._session.execute(stmt)
             await self._session.flush()
         except IntegrityError as e:
-            logger.error(event=UserRepoErrorEvents.USER_UPDATE_ERROR, user_id=entity.id)
+            logger.error(
+                event=RepoError.INTEGRITY_CONFLICT,
+                op=Operation.UPDATE,
+                user_id=entity.id,
+            )
             raise UserAlreadyExistsError(entity.email) from e
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.UPDATE)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
 
     async def get_by_id(self, user_id: UUID) -> User | None:
@@ -112,7 +113,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         try:
             result: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         row: RowMapping | None = result.mappings().one_or_none()
@@ -144,7 +145,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         try:
             results: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
         rows: Sequence[RowMapping] = results.mappings().all()
@@ -156,7 +157,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         try:
             result: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
-            logger.error(event=UserRepoErrorEvents.DB_UNAVAILABLE, op=Operation.GET)
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
 
         row: RowMapping | None = result.mappings().one_or_none()
 

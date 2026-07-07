@@ -9,6 +9,11 @@ class Operation(StrEnum):
     DELETE = auto()
 
 
+class RepoError(StrEnum):
+    DB_UNAVAILABLE = auto()
+    INTEGRITY_CONFLICT = auto()
+
+
 class AbstractRepository[T, F = T](ABC):
     @abstractmethod
     async def get_all(self) -> list[F]:
