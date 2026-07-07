@@ -15,6 +15,7 @@ from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.project import Project, ProjectStatus
 from src.domain.user import User, UserStatus
 from src.domain.api import APIKey, APIKeyStatus
+from src.domain.token import PasswordSetToken
 
 
 mapper_registry = registry()
@@ -78,6 +79,22 @@ api_key_table = Table(
     Column("id", UUID, primary_key=True),
 )
 
+password_set_tokens_table = Table(
+    "password_token",
+    metadata,
+    Column(
+        "user_id",
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
+    Column("token_hash", String, nullable=False, index=True),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("created_date", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True), nullable=True),
+    Column("id", UUID, primary_key=True),
+)
+
 project_user_table = Table(
     "project_user",
     metadata,
@@ -92,3 +109,4 @@ mapper_registry.map_imperatively(
 )
 mapper_registry.map_imperatively(User, users_table)
 mapper_registry.map_imperatively(APIKey, api_key_table)
+mapper_registry.map_imperatively(PasswordSetToken, password_set_tokens_table)
