@@ -20,7 +20,7 @@ class PasswordSetToken:
     @classmethod
     def issue(cls, user_id: UUID, ttl: timedelta) -> tuple[str, "PasswordSetToken"]:
         raw_token: str = secrets.token_urlsafe(32)
-        hashed_token: str = hashlib.sha256(raw_token.encode()).hexdigest()
+        hashed_token: str = cls.hash_token(raw_token)
         now: datetime = datetime.now(UTC)
         return raw_token, cls(
             user_id=user_id,
@@ -28,6 +28,10 @@ class PasswordSetToken:
             created_date=now,
             expires_at=ttl + now,
         )
+
+    @staticmethod
+    def hash_token(raw_token: str) -> str:
+        return hashlib.sha256(raw_token.encode()).hexdigest()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

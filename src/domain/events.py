@@ -81,3 +81,11 @@ class PasswordHashCreated(Event):
     user_email: str
     first_name: str
     plain_text_password: str
+
+
+@dataclass(frozen=True)
+class PasswordTokenCreated(Event):
+    user_id: UUID
+    user_email: str
+    first_name: str
+    raw_token: str
