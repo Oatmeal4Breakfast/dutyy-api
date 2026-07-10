@@ -2,7 +2,7 @@ from __future__ import annotations
 import resend
 from typing import cast
 
-from src.domain.events import PasswordHashCreated
+from src.domain.events import PasswordTokenCreated
 from src.config import EmailServiceConfig
 from src.logger import get_logger
 
@@ -15,18 +15,21 @@ class EmailService:
         if not resend.api_key:
             raise ValueError("resend_api_key is not set")
         self.from_addr: str = email_service_config.sender_email
+        self.frontend_url: str = frontend_url
 
-    def build_welcome_email(self, user_name: str, temporary_password: str) -> str:
+    def build_welcome_email(self, user_name: str, raw_token: str) -> str:
+        link: str = self.frontend_url + raw_token
         return f"""
             <p>Hi {user_name},</p>
             <p>Welcome to dutyy! Your account has been created.</p>
-            <p>Temporary password: {temporary_password}</p>
+            <p>Click <a href={link}>here</a> to set your password</p>
         """
+        logger.info(event="welcome_email_built", token=raw_token)
 
-    async def send_welcome_email(self, event: PasswordHashCreated):
+    async def send_welcome_email(self, event: PasswordTokenCreated):
         html: str = self.build_welcome_email(
             user_name=event.first_name,
-            temporary_password=event.plain_text_password,
+            raw_token=event.raw_token,
         )
 
         payload = cast(
