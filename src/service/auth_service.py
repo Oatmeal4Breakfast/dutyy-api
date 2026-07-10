@@ -51,7 +51,7 @@ class AuthService:
             string.ascii_letters + string.digits + string.punctuation
         )
         self._password_hash: PasswordHash = PasswordHash.recommended()
-        self.expire_time: timedelta = auth_service_config.expire_time
+        self.jwt_ttl: timedelta = auth_service_config.jwt_ttl
         self.secret: str = auth_service_config.secret
         self.algorithm: str = auth_service_config.algorithm
 
@@ -90,7 +90,7 @@ class AuthService:
     async def authenticate_user(
         self, user_email: str, user_password: str
     ) -> tuple[User, bool]:
-        async with self._uow as uow:
+        async with UnitOfWork(self._session, self._bus) as uow:
             user: User | None = await uow.user.get_user_by_email(email=user_email)
 
             if user is None:

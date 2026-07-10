@@ -39,8 +39,9 @@ class AuthServiceConfig(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+    token_ttl: timedelta
     secret: str = Field(default_factory=lambda: secrets.token_hex(16))
-    expire_time: timedelta = Field(default_factory=lambda: timedelta(minutes=15))
+    jwt_ttl: timedelta = Field(default_factory=lambda: timedelta(minutes=15))
     algorithm: str = "HS256"
 
 

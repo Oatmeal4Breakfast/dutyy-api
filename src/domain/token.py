@@ -18,16 +18,15 @@ class PasswordSetToken:
     id: UUID = field(default_factory=uuid7)
 
     @classmethod
-    def issue(cls, user_id: UUID) -> tuple[str, "PasswordSetToken"]:
+    def issue(cls, user_id: UUID, ttl: timedelta) -> tuple[str, "PasswordSetToken"]:
         raw_token: str = secrets.token_urlsafe(32)
         hashed_token: str = hashlib.sha256(raw_token.encode()).hexdigest()
         now: datetime = datetime.now(UTC)
-        expires_at: datetime = now + timedelta(minutes=30)
         return raw_token, cls(
             user_id=user_id,
             token_hash=hashed_token,
             created_date=now,
-            expires_at=expires_at,
+            expires_at=ttl + now,
         )
 
     def to_dict(self) -> dict[str, Any]:
