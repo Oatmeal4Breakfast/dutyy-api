@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 
 class EmailService:
-    def __init__(self, email_service_config: EmailServiceConfig):
+    def __init__(self, email_service_config: EmailServiceConfig, frontend_url: str):
         resend.api_key: str = email_service_config.resend_api_key
         if not resend.api_key:
             raise ValueError("resend_api_key is not set")

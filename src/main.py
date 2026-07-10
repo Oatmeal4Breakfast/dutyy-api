@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Depends, Request
@@ -43,7 +42,7 @@ async def lifespan(app: FastAPI):
         session_factory=session, event_bus=bus, auth_service_config=auth_config
     )
 
-    email_service = EmailService(email_config)
+    email_service = EmailService(email_config, frontend_url=config.frontend_url)
     app.state.session_factory: async_sessionmaker[AsyncSession] = session
     app.state.event_bus: EventBus = bus
     app.state.auth_service = auth_service
