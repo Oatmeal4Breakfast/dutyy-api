@@ -3,6 +3,7 @@ import jwt
 
 from datetime import timedelta, datetime, UTC
 from typing import TYPE_CHECKING
+from collections.abc import Callable
 from pwdlib import PasswordHash
 
 from src.domain.events import (
@@ -11,7 +12,7 @@ from src.domain.events import (
 )
 from src.domain.user import User
 from src.domain.token import PasswordSetToken
-from src.db.uow import UnitOfWork
+from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
 from src.config import AuthServiceConfig
 from src.service.user_service import UserNotFoundError
@@ -34,29 +35,23 @@ class AuthenticationFailed(Exception):
 class AuthService:
     def __init__(
         self,
-        session_factory: async_sessionmaker[AsyncSession],
-        event_bus: EventBus,
+        uow_factory: Callable[
+            [async_sessionmaker[AsyncSession], EventBus], AbstractUnitOfWork
+        ],
         auth_service_config: AuthServiceConfig,
     ) -> None:
-        self._session: async_sessionmaker[AsyncSession] = session_factory
-        self._bus: EventBus = event_bus
+        self._uow_factory: Callable = uow_factory
         self._hasher: PasswordHash = PasswordHash.recommended()
         self.jwt_ttl: timedelta = auth_service_config.jwt_ttl
         self.secret: str = auth_service_config.secret
         self.algorithm: str = auth_service_config.algorithm
         self.token_ttl: timedelta = auth_service_config.token_ttl
 
-    # -----------------Use for password hashing only---------------------------
-    def _hash(self, raw: str) -> str:
-        return self._hasher.hash(raw.encode())
-
     def verify_hash(self, password: str, hashed_password: str) -> bool:
         return self._hasher.verify(password, hashed_password)
 
-    # ------------------------------------------------------------------------
-
     async def handle_user_created(self, event: UserCreated) -> None:
-        async with UnitOfWork(self._session, self._bus) as uow:
+        async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_by_id(event.user_id)
 
             if user is None:
@@ -81,7 +76,7 @@ class AuthService:
     async def authenticate_user(
         self, user_email: str, user_password: str
     ) -> tuple[User, bool]:
-        async with UnitOfWork(self._session, self._bus) as uow:
+        async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_user_by_email(email=user_email)
 
             if user is None:
