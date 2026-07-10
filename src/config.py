@@ -21,6 +21,7 @@ class Config(BaseSettings):
     postgres_host: str
     postgres_db: str
     postgres_password: str
+    frontend_url: str
     postgres_port: int = Field(default=5432, ge=1, le=65535)
     max_overflow: int = Field(default=10)
     pool_size: int = Field(default=5)
