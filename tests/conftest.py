@@ -1,14 +1,18 @@
-import asyncio
 import pytest
-
+import asyncio
 from uuid import UUID
+from datetime import timedelta
 from typing import Any
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from functools import partial
+
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 from src.bus.bus import EventBus
 from src.db.orm import metadata
 from src.db.uow import AbstractUnitOfWork
+
+from src.config import AuthServiceConfig
 
 from src.repository.user_repo import UserRepo
 from src.repository.dutyy_repo import DutyRepo
@@ -22,6 +26,8 @@ from src.domain.project import Project
 from src.domain.dutyy import Dutyy
 from src.domain.api import APIKey
 from src.service.user_service import UserService
+from src.service.auth_service import AuthService
+
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
 
@@ -81,6 +87,17 @@ def make_user_service(uow) -> UserService:
     return UserService(uow)
 
 
+def make_auth_service(session, event_bus) -> AuthService:
+    config = AuthServiceConfig(
+        token_ttl=timedelta(minutes=30),
+        secret="test_secret",
+    )
+    return AuthService(
+        uow_factory=partial(FakeUnitOfWork, session, event_bus),
+        auth_service_config=config,
+    )
+
+
 @pytest.fixture(scope="session")
 def engine():
     return create_async_engine(TEST_DB_URI)
@@ -104,10 +121,13 @@ def setup_tables(engine):
 
 @pytest.fixture
 async def session(engine, setup_tables):
-    async with AsyncSession(engine) as s:
-        await s.begin()
-        yield s
-        await s.rollback()
+    connection = await engine.connect()
+    trans = await connection.begin()
+    s = AsyncSession(bind=connection, join_transaction_mode="create_savepoint")
+    yield s
+    await s.close()
+    await trans.rollback()
+    await connection.close()
 
 
 @pytest.fixture
