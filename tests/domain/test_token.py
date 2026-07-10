@@ -9,6 +9,7 @@ from src.domain.exceptions import DomainValidationError
 
 
 _DEFAULT_USER_ID = uuid7()
+_TTL = timedelta(minutes=15)
 
 
 def make_token(**kwargs) -> PasswordSetToken:
@@ -44,7 +45,7 @@ def test_token_unique_ids() -> None:
 
 
 def test_issue_returns_raw_token_and_entity() -> None:
-    raw_token, token = PasswordSetToken.issue(_DEFAULT_USER_ID)
+    raw_token, token = PasswordSetToken.issue(user_id=_DEFAULT_USER_ID, ttl=_TTL)
 
     assert isinstance(raw_token, str)
     assert raw_token
@@ -53,23 +54,23 @@ def test_issue_returns_raw_token_and_entity() -> None:
 
 
 def test_issue_stores_hash_not_raw_token() -> None:
-    raw_token, token = PasswordSetToken.issue(_DEFAULT_USER_ID)
+    raw_token, token = PasswordSetToken.issue(user_id=_DEFAULT_USER_ID, ttl=_TTL)
 
     assert token.token_hash != raw_token
     assert token.token_hash == hashlib.sha256(raw_token.encode()).hexdigest()
 
 
 def test_issue_sets_expiry_relative_to_created_date() -> None:
-    _, token = PasswordSetToken.issue(_DEFAULT_USER_ID)
+    _, token = PasswordSetToken.issue(user_id=_DEFAULT_USER_ID, ttl=_TTL)
 
     time_diff = datetime.now(UTC) - token.created_date
     assert time_diff < timedelta(seconds=1)
-    assert token.expires_at == token.created_date + timedelta(minutes=30)
+    assert token.expires_at == token.created_date + _TTL
 
 
 def test_issue_generates_unique_tokens() -> None:
-    raw_one, token_one = PasswordSetToken.issue(_DEFAULT_USER_ID)
-    raw_two, token_two = PasswordSetToken.issue(_DEFAULT_USER_ID)
+    raw_one, token_one = PasswordSetToken.issue(user_id=_DEFAULT_USER_ID, ttl=_TTL)
+    raw_two, token_two = PasswordSetToken.issue(user_id=_DEFAULT_USER_ID, ttl=_TTL)
 
     assert raw_one != raw_two
     assert token_one.token_hash != token_two.token_hash

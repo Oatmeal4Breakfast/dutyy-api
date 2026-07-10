@@ -4,13 +4,15 @@ from datetime import timedelta, datetime, UTC
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.domain.token import PasswordSetToken
 
+_TTL = timedelta(minutes=15)
+
 
 @pytest.mark.integration
 class TestTokenRepo:
     async def test_add_and_retrive_by_hash_success(self, session, user):
         repo = PasswordSetTokenRepo(session)
 
-        raw, token = PasswordSetToken.issue(user.id)
+        raw, token = PasswordSetToken.issue(user_id=user.id, ttl=_TTL)
 
         assert raw is not None
         assert isinstance(raw, str)
@@ -28,7 +30,7 @@ class TestTokenRepo:
     async def test_consume_and_update_success(self, session, user):
         repo = PasswordSetTokenRepo(session)
 
-        raw, token = PasswordSetToken.issue(user.id)
+        raw, token = PasswordSetToken.issue(user_id=user.id, ttl=_TTL)
 
         await repo.add(token)
 
