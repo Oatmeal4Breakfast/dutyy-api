@@ -1,17 +1,16 @@
 from __future__ import annotations
 import jwt
 
-import secrets
-import string
 from datetime import timedelta, datetime, UTC
-from typing import TYPE_CHECKING, LiteralString
+from typing import TYPE_CHECKING
 from pwdlib import PasswordHash
 
 from src.domain.events import (
     UserCreated,
-    PasswordHashCreated,
+    PasswordTokenCreated,
 )
 from src.domain.user import User
+from src.domain.token import PasswordSetToken
 from src.db.uow import UnitOfWork
 from src.logger import get_logger
 from src.config import AuthServiceConfig
@@ -24,12 +23,6 @@ if TYPE_CHECKING:
     from uuid import UUID
 
 logger = get_logger(__name__)
-
-# TODO: Emit an event so that we can fire the email off to the user
-# TODO: Persist the password hash to the user needing it.
-# TODO: Write tests for this service
-# TODO: Write a depdency getter for this class for injection into routes
-# TODO: Implement Oauth2 with OauthPasswordBearer
 
 
 class AuthenticationFailed(Exception):
@@ -47,40 +40,38 @@ class AuthService:
     ) -> None:
         self._session: async_sessionmaker[AsyncSession] = session_factory
         self._bus: EventBus = event_bus
-        self._valid_characters: LiteralString = (
-            string.ascii_letters + string.digits + string.punctuation
-        )
-        self._password_hash: PasswordHash = PasswordHash.recommended()
+        self._hasher: PasswordHash = PasswordHash.recommended()
         self.jwt_ttl: timedelta = auth_service_config.jwt_ttl
         self.secret: str = auth_service_config.secret
         self.algorithm: str = auth_service_config.algorithm
+        self.token_ttl: timedelta = auth_service_config.token_ttl
 
-    def _generate_random_password(self) -> str:
-        return "".join(secrets.choice(self._valid_characters) for _ in range(12))
-
-    def _hash_password(self, plain_password: str) -> str:
-        return self._password_hash.hash(password=plain_password)
+    # -----------------Use for password hashing only---------------------------
+    def _hash(self, raw: str) -> str:
+        return self._hasher.hash(raw.encode())
 
     def verify_hash(self, password: str, hashed_password: str) -> bool:
-        return self._password_hash.verify(password, hashed_password)
+        return self._hasher.verify(password, hashed_password)
+
+    # ------------------------------------------------------------------------
 
     async def handle_user_created(self, event: UserCreated) -> None:
-        plain_password: str = self._generate_random_password()
-        hashed_password: str = self._hash_password(plain_password)
-
         async with UnitOfWork(self._session, self._bus) as uow:
             user: User | None = await uow.user.get_by_id(event.user_id)
 
             if user is None:
                 return
 
-            user.update_password_hash(password_hash=hashed_password)
+            raw_token, token = PasswordSetToken.issue(
+                user_id=user.id, ttl=self.token_ttl
+            )
+            await uow.token.add(token)
             user.events.append(
-                PasswordHashCreated(
+                PasswordTokenCreated(
                     user_id=user.id,
                     first_name=user.first_name,
                     user_email=user.email,
-                    plain_text_password=plain_password,
+                    raw_token=raw_token,
                 )
             )
             logger.info(event="user_password_hash_created", user_id=str(user.id))
