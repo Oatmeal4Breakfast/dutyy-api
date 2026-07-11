@@ -7,7 +7,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 
 from src.api.deps import get_uow
-from src.api import user_router
+from src.api import user_router, auth_router
+from src.db.uow import UnitOfWork
 from src.domain.exceptions import (
     DomainValidationError,
     UserAlreadyExistsError,
@@ -28,7 +29,6 @@ from src.logger import config_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
-    from src.db.uow import UnitOfWork
     from src.config import AuthServiceConfig, Config, EmailServiceConfig
 
 
@@ -97,6 +97,7 @@ async def user_not_found_handler(
 
 
 app.include_router(user_router.router)
+app.include_router(auth_router.router)
 
 
 @app.get("/health")
