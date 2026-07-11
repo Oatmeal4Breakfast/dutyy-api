@@ -1,5 +1,8 @@
 from __future__ import annotations
+from src.domain.exceptions import DomainValidationError
 import jwt
+import asyncio
+import hashlib
 
 from datetime import timedelta, datetime, UTC
 from typing import TYPE_CHECKING
@@ -47,8 +50,40 @@ class AuthService:
         self.algorithm: str = auth_service_config.algorithm
         self.token_ttl: timedelta = auth_service_config.token_ttl
 
-    def verify_hash(self, password: str, hashed_password: str) -> bool:
-        return self._hasher.verify(password, hashed_password)
+    async def set_password(self, raw_token: str, new_password: str) -> None:
+        token_hash: str = hashlib.sha256(raw_token.encode()).hexdigest()
+        async with self._uow_factory() as uow:
+            token: PasswordSetToken | None = await uow.token.get_by_hash(
+                token_hash=token_hash
+            )
+            if token is None:
+                logger.error(event="no_password_set_token_found")
+                raise DomainValidationError(
+                    entity="PasswordSetToken", errors=["PasswordSetToken not found"]
+                )
+
+            user: User | None = await uow.user.get_by_id(token.user_id)
+            if user is None:
+                logger.error(event="user_not_found", user_id=str(token.user_id))
+                raise DomainValidationError(
+                    "User", errors=[f"user with id {token.user_id} not found"]
+                )
+
+            token.consume()
+
+            hashed_password: str = await asyncio.to_thread(
+                self._hasher.hash, new_password
+            )
+
+            user.update_password_hash(hashed_password)
+
+            await uow.user.update(user)
+            await uow.token.udpate(token)
+            await uow.commit()
+            logger.info(event="user_password_hash_set", user_id=str(user.id))
+
+    async def verify_hash(self, password: str, hashed_password: str) -> bool:
+        return await asyncio.to_thread(self._hasher.verify, password, hashed_password)
 
     async def handle_user_created(self, event: UserCreated) -> None:
         async with self._uow_factory() as uow:
@@ -75,17 +110,13 @@ class AuthService:
 
     async def authenticate_user(
         self, user_email: str, user_password: str
-    ) -> tuple[User, bool]:
+    ) -> User | None:
         async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_user_by_email(email=user_email)
 
             if user is None:
                 logger.error(event="user_not_found", user_email=user_email)
                 raise UserNotFoundError(user_email)
-
-            if user.password_hash is None:
-                logger.error(event="authentication_failed", user_id=str(user.id))
-                raise AuthenticationFailed(user_id=user.id)
 
             is_verified: bool = self.verify_hash(
                 password=user_password, hashed_password=user.password_hash
@@ -97,13 +128,13 @@ class AuthService:
                     user_id=str(user.id),
                     user_email=user.email,
                 )
-                return user, True
+                return user
             logger.warn(
                 event="user_authentication_failed",
                 user_id=str(user.id),
                 user_email=user.email,
             )
-            return user, False
+            return
 
     def create_access_token(
         self, payload: dict[str, str | datetime], expires_delta: timedelta
