@@ -78,7 +78,7 @@ class AuthService:
             user.update_password_hash(hashed_password)
 
             await uow.user.update(user)
-            await uow.token.udpate(token)
+            await uow.token.update(token)
             await uow.commit()
             logger.info(event="user_password_hash_set", user_id=str(user.id))
 
@@ -118,7 +118,7 @@ class AuthService:
                 logger.error(event="user_not_found", user_email=user_email)
                 raise UserNotFoundError(user_email)
 
-            is_verified: bool = self.verify_hash(
+            is_verified: bool = await self.verify_hash(
                 password=user_password, hashed_password=user.password_hash
             )
 
