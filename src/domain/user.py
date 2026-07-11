@@ -138,9 +138,10 @@ class User:
         )
 
     def update_password_hash(self, password_hash: str) -> None:
-        self.password_hash = password_hash
-        mod_date = self._touch()
-        if self.password_hash is not None:
+        had_password: bool = self.password_hash is not None
+        self.password_hash: str = password_hash
+        mod_date: datetime = self._touch()
+        if had_password:
             event = UserPasswordReset(
                 user_id=self.id,
                 email=self.email,
