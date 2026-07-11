@@ -18,7 +18,7 @@ class EmailService:
         self.frontend_url: str = frontend_url
 
     def build_welcome_email(self, user_name: str, raw_token: str) -> str:
-        link: str = self.frontend_url + raw_token
+        link: str = f"{self.frontend_url}/set-password?token={raw_token}"
         return f"""
             <p>Hi {user_name},</p>
             <p>Welcome to dutyy! Your account has been created.</p>
@@ -41,6 +41,11 @@ class EmailService:
                 "html": html,
             },
         )
-        email = await resend.Emails.send_async(payload)
+
+        send_options = cast(
+            resend.Emails.SendOptions,
+            {"idempotency_key": f"set-password/{event.raw_token}"},
+        )
+        email = await resend.Emails.send_async(params=payload, options=send_options)
         logger.debug(event="sending_welcome_email", response=email)
         return email
