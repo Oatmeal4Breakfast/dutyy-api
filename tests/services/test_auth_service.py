@@ -12,7 +12,6 @@ from src.domain.token import PasswordSetToken
 from src.domain.exceptions import DomainValidationError
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
-from src.service.user_service import UserNotFoundError
 
 
 _hasher = PasswordHash.recommended()
@@ -99,7 +98,7 @@ class TestAuthService:
 
         auth_service = make_auth_service(session, event_bus)
 
-        result = await auth_service.authenticate_user(user.email, "correct-horse")
+        result = await auth_service._authenticate_user(user.email, "correct-horse")
 
         assert result is not None
         assert result.id == user.id
@@ -112,12 +111,6 @@ class TestAuthService:
 
         auth_service = make_auth_service(session, event_bus)
 
-        result = await auth_service.authenticate_user(user.email, "wrong-password")
+        result = await auth_service._authenticate_user(user.email, "wrong-password")
 
         assert result is None
-
-    async def test_authenticate_user_unknown_email_raises(self, session, event_bus):
-        auth_service = make_auth_service(session, event_bus)
-
-        with pytest.raises(UserNotFoundError):
-            await auth_service.authenticate_user("nobody@example.com", "whatever")

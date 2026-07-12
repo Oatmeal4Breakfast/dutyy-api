@@ -37,6 +37,7 @@ jobs:
           POSTGRES_DB: test_db
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5433
+          FRONTEND_URL: http://localhost3000
         run: uv run alembic upgrade head
 
       - name: Run Tests
