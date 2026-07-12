@@ -18,7 +18,6 @@ from src.domain.token import PasswordSetToken
 from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
 from src.config import AuthServiceConfig
-from src.service.user_service import UserNotFoundError
 
 
 if TYPE_CHECKING:
@@ -108,35 +107,34 @@ class AuthService:
             await uow.user.update(user)
             await uow.commit()
 
-    async def authenticate_user(
-        self, user_email: str, user_password: str
-    ) -> User | None:
+    async def _authenticate_user(self, user_email: str, password: str) -> User | None:
         async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_user_by_email(email=user_email)
 
             if user is None:
-                logger.error(event="user_not_found", user_email=user_email)
-                raise UserNotFoundError(user_email)
+                logger.warn(event="user_not_found", user_email=user_email)
+                return None
 
-            is_verified: bool = await self.verify_hash(
-                password=user_password, hashed_password=user.password_hash
+            is_verified: bool = (
+                await self.verify_hash(
+                    password=password, hashed_password=user.password_hash
+                )
+                if user.password_hash
+                else False
             )
 
-            if is_verified:
-                logger.info(
-                    event="user_authenticated",
-                    user_id=str(user.id),
-                    user_email=user.email,
-                )
-                return user
-            logger.warn(
-                event="user_authentication_failed",
+            if not is_verified:
+                logger.warn(event="password_incorrect", user_email=user_email)
+                return None
+
+            logger.info(
+                event="user_authentication_success",
                 user_id=str(user.id),
                 user_email=user.email,
             )
-            return
+            return user
 
-    def create_access_token(
+    def _create_access_token(
         self, payload: dict[str, str | datetime], expires_delta: timedelta
     ) -> str:
         to_encode = payload.copy()
@@ -146,3 +144,16 @@ class AuthService:
             payload=to_encode, key=self.secret, algorithm=self.algorithm
         )
         return encoded_jwt
+
+    async def login(self, user_email: str, password: str) -> str | None:
+        user: User | None = await self._authenticate_user(
+            user_email=user_email, password=password
+        )
+
+        if user is None:
+            return None
+
+        jwt: str = self._create_access_token(
+            payload={"sub": user.email}, expires_delta=self.jwt_ttl
+        )
+        return jwt

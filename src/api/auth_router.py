@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Annotated
 
-from fastapi import Depends, APIRouter
+from fastapi import Depends, APIRouter, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -17,14 +17,39 @@ class SetPasswordRequest(BaseModel):
     new_password: str
 
 
-router = APIRouter(prefix="/dutyy/api/v1", tags=["auth"])
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+
+
+credentials_exception = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Invalid username or password",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+router = APIRouter(prefix="/dutyy/api/v1/auth", tags=["auth"])
 
 _AuthService = Annotated[AuthService, Depends(get_auth_service)]
 
 
-@router.post(path="/auth/set-password")
+@router.post(path="/set-password", status_code=204)
 async def set_user_password(request: SetPasswordRequest, service: _AuthService):
     await service.set_password(
         raw_token=request.raw_token, new_password=request.new_password
     )
     return Response(status_code=204)
+
+
+@router.post(path="/login", response_model=TokenResponse)
+async def login(request: LoginRequest, service: _AuthService):
+    jwt: str | None = await service.login(
+        user_email=request.email, password=request.password
+    )
+    if jwt is None:
+        raise credentials_exception
+    return TokenResponse(access_token=jwt, token_type="bearer")

@@ -11,7 +11,7 @@ from src.bus.bus import EventBus
 from sqlalchemy.ext.asyncio.session import async_sessionmaker, AsyncSession
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/dutyy/api/v1/auth/login")
 
 
 def get_event_bus(request: Request) -> EventBus:
