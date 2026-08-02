@@ -1,5 +1,4 @@
 from __future__ import annotations
-from src.domain.exceptions import DomainValidationError
 import jwt
 import asyncio
 import hashlib
@@ -12,12 +11,14 @@ from pwdlib import PasswordHash
 from src.domain.events import (
     UserCreated,
     PasswordTokenCreated,
+    PasswordResetRequested,
 )
 from src.domain.user import User
 from src.domain.token import PasswordSetToken
 from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
 from src.config import AuthServiceConfig
+from src.domain.exceptions import DomainValidationError
 
 
 if TYPE_CHECKING:
@@ -104,6 +105,40 @@ class AuthService:
                 )
             )
             logger.info(event="user_password_hash_created", user_id=str(user.id))
+            await uow.user.update(user)
+            await uow.commit()
+
+    async def handle_password_reset(self, user_email: str) -> None:
+        async with self._uow_factory() as uow:
+            user: User | None = await uow.user.get_user_by_email(email=user_email)
+
+            if user is None:
+                return
+
+            existing_tokens: list[
+                PasswordSetToken
+            ] = await uow.token.get_active_by_user_id(user_id=user.id)
+
+            # invalidate existing_tokens
+            for token in existing_tokens:
+                token.consume()
+                await uow.token.update(token)
+
+            raw_token, token = PasswordSetToken.issue(
+                user_id=user.id, ttl=self.token_ttl
+            )
+
+            await uow.token.add(token)
+
+            user.events.append(
+                PasswordResetRequested(
+                    user_id=user.id,
+                    user_email=user.email,
+                    first_name=user.first_name,
+                    raw_token=raw_token,
+                )
+            )
+            logger.info(event="user_password_reset_token_created", user_id=str(user.id))
             await uow.user.update(user)
             await uow.commit()
 

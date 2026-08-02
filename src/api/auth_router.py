@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import Depends, APIRouter, HTTPException, status
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from src.api.deps import get_auth_service
 from src.service.auth_service import AuthService
@@ -18,8 +18,12 @@ class SetPasswordRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
 
 
 class TokenResponse(BaseModel):
@@ -53,3 +57,11 @@ async def login(request: LoginRequest, service: _AuthService):
     if jwt is None:
         raise credentials_exception
     return TokenResponse(access_token=jwt, token_type="bearer")
+
+
+@router.post(path="/request-password-reset", status_code=204)
+async def request_password_reset(request: PasswordResetRequest, service: _AuthService):
+    # Always return 204 regardless of whether the email exists to avoid
+    # leaking which addresses are registered (user enumeration).
+    await service.handle_password_reset(user_email=request.email)
+    return Response(status_code=204)

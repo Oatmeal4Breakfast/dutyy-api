@@ -89,3 +89,11 @@ class PasswordTokenCreated(Event):
     user_email: str
     first_name: str
     raw_token: str
+
+
+@dataclass(frozen=True)
+class PasswordResetRequested(Event):
+    user_id: UUID
+    user_email: str
+    first_name: str
+    raw_token: str

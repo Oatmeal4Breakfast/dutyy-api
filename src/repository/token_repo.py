@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.repository.abstract_repo import Operation, RepoError
@@ -11,6 +11,7 @@ from src.db.orm import password_set_tokens_table
 from src.logger import get_logger
 
 if TYPE_CHECKING:
+    from uuid import UUID
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy import Result, RowMapping, Select, Update
 
@@ -49,10 +50,7 @@ class PasswordSetTokenRepo:
 
         row: RowMapping | None = result.mappings().one_or_none()
 
-        if row is None:
-            return None
-
-        return PasswordSetToken(**row)
+        return PasswordSetToken(**row) if row is not None else None
 
     async def update(self, entity: PasswordSetToken) -> None:
         data: dict[str, Any] = entity.to_dict()
@@ -75,3 +73,21 @@ class PasswordSetTokenRepo:
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
+
+    async def get_active_by_user_id(self, user_id: UUID) -> list[PasswordSetToken]:
+        stmt: Select[Any] = (
+            select(password_set_tokens_table)
+            .where(password_set_tokens_table.c.user_id == user_id)
+            .where(password_set_tokens_table.c.used_at.is_(None))
+            .where(password_set_tokens_table.c.expires_at > func.now())
+        )
+
+        try:
+            result: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        rows: Sequence[RowMapping] = result.mappings().fetchall()
+
+        return [PasswordSetToken(**row) for row in rows]
