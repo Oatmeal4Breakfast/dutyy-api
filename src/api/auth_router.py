@@ -61,7 +61,5 @@ async def login(request: LoginRequest, service: _AuthService):
 
 @router.post(path="/request-password-reset", status_code=204)
 async def request_password_reset(request: PasswordResetRequest, service: _AuthService):
-    # Always return 204 regardless of whether the email exists to avoid
-    # leaking which addresses are registered (user enumeration).
     await service.handle_password_reset(user_email=request.email)
     return Response(status_code=204)

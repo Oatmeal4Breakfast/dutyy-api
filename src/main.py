@@ -14,7 +14,7 @@ from src.domain.exceptions import (
     UserAlreadyExistsError,
     ProjectAlreadyExistsError,
 )
-from src.domain.events import UserCreated, PasswordTokenCreated
+from src.bootstrap import register_event_handlers
 from src.bus.bus import EventBus
 from src.service.user_service import UserNotFoundError
 from src.service.auth_service import AuthService
@@ -49,8 +49,7 @@ async def lifespan(app: FastAPI):
     app.state.event_bus: EventBus = bus
     app.state.auth_service = auth_service
     app.state.email_service = email_service
-    bus.subscribe(UserCreated, auth_service.handle_user_created)
-    bus.subscribe(PasswordTokenCreated, email_service.send_welcome_email)
+    register_event_handlers(bus, auth_service=auth_service, email_service=email_service)
     yield
     await bus.drain()
     await engine.dispose()
