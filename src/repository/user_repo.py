@@ -158,6 +158,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             result: Result[Any] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
 
         row: RowMapping | None = result.mappings().one_or_none()
 

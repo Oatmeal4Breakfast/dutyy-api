@@ -4,16 +4,17 @@ import asyncio
 import hashlib
 
 from datetime import timedelta, datetime, UTC
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
 from pwdlib import PasswordHash
+from jwt.exceptions import InvalidTokenError
 
 from src.domain.events import (
     UserCreated,
     PasswordTokenCreated,
     PasswordResetRequested,
 )
-from src.domain.user import User
+from src.domain.user import User, UserStatus
 from src.domain.token import PasswordSetToken
 from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
@@ -192,3 +193,25 @@ class AuthService:
             payload={"sub": user.email}, expires_delta=self.jwt_ttl
         )
         return jwt
+
+    async def get_current_user(self, token: str) -> User | None:
+        try:
+            payload: dict[str, Any] = jwt.decode(
+                jwt=token, key=self.secret, algorithms=[self.algorithm]
+            )
+        except InvalidTokenError as e:
+            logger.warning(event="could_not_decode_token", error=str(e))
+            return None
+
+        user_email: str | None = payload.get("sub")
+        if user_email is None:
+            logger.error(event="no_user_in_payload")
+            return None
+
+        async with self._uow_factory() as uow:
+            user: User | None = await uow.user.get_user_by_email(email=user_email)
+
+        if user.status != UserStatus.ACTIVE:
+            return None
+
+        return user
