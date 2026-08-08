@@ -83,8 +83,8 @@ def make_dutyy(project_id: UUID, **kwargs) -> Dutyy:
     return Dutyy(**{**defaults, **kwargs})
 
 
-def make_user_service(uow) -> UserService:
-    return UserService(uow)
+def make_user_service(session, event_bus) -> UserService:
+    return UserService(uow_factory=partial(FakeUnitOfWork, session, event_bus))
 
 
 def make_auth_service(session, event_bus) -> AuthService:

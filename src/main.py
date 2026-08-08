@@ -16,7 +16,7 @@ from src.domain.exceptions import (
 )
 from src.bootstrap import register_event_handlers
 from src.bus.bus import EventBus
-from src.service.user_service import UserNotFoundError
+from src.service.user_service import UserNotFoundError, UserService
 from src.service.auth_service import AuthService
 from src.service.email_service import EmailService
 from src.db.db import create_engine_and_session
@@ -37,18 +37,20 @@ async def lifespan(app: FastAPI):
     config_logger(config)
     auth_config: AuthServiceConfig = get_auth_service_config()
     email_config: EmailServiceConfig = get_email_service_config()
-    engine, session = create_engine_and_session(config)
+    engine, session_factory = create_engine_and_session(config)
     bus = EventBus()
+    uow_factory: partial[UnitOfWork] = partial(UnitOfWork, session_factory, bus)
     auth_service = AuthService(
-        uow_factory=partial(UnitOfWork, session, bus),
+        uow_factory=uow_factory,
         auth_service_config=auth_config,
     )
-
     email_service = EmailService(email_config, frontend_url=config.frontend_url)
-    app.state.session_factory: async_sessionmaker[AsyncSession] = session
+    user_service = UserService(uow_factory=uow_factory)
+    app.state.session_factory: async_sessionmaker[AsyncSession] = session_factory
     app.state.event_bus: EventBus = bus
     app.state.auth_service = auth_service
     app.state.email_service = email_service
+    app.state.user_service = user_service
     register_event_handlers(bus, auth_service=auth_service, email_service=email_service)
     yield
     await bus.drain()

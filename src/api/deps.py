@@ -28,15 +28,15 @@ def get_auth_service(request: Request) -> AuthService:
     return request.app.state.auth_service
 
 
+def get_user_service(request) -> UserService:
+    return request.app.state.user_service
+
+
 def get_uow(
     session_factory: async_sessionmaker[AsyncSession] = Depends(get_session_factory),
     bus: EventBus = Depends(get_event_bus),
 ) -> UnitOfWork:
     return UnitOfWork(session_factory, event_bus=bus)
-
-
-def get_user_service(uow: UnitOfWork = Depends(get_uow)) -> UserService:
-    return UserService(uow)
 
 
 async def get_current_user(

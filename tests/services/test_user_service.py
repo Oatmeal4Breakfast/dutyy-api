@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 from src.domain.events import UserCreated, UserStatusChanged
 from src.domain.user import UserStatus, UserUpdateFields
-from tests.conftest import make_user_service, FakeUnitOfWork
+from tests.conftest import make_user_service
 
 
 @pytest.mark.integration
@@ -12,8 +12,7 @@ class TestUserService:
     async def test_create_user_fires_event(self, session, event_bus):
         fake_handler = AsyncMock()
         event_bus.subscribe(UserCreated, fake_handler)
-        uow = FakeUnitOfWork(session, event_bus)
-        service = make_user_service(uow)
+        service = make_user_service(session, event_bus)
 
         await service.create_user(fname="test", lname="test", email="test@example.com")
 
@@ -24,9 +23,7 @@ class TestUserService:
 
         event_bus.subscribe(UserStatusChanged, fake_user_status_handler)
 
-        uow = FakeUnitOfWork(session, event_bus)
-
-        service = make_user_service(uow)
+        service = make_user_service(session, event_bus)
 
         changes = UserUpdateFields(status=UserStatus.INACTIVE)
 

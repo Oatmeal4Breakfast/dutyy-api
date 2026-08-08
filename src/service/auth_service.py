@@ -171,7 +171,7 @@ class AuthService:
             return user
 
     def _create_access_token(
-        self, payload: dict[str, str | datetime], expires_delta: timedelta
+        self, payload: dict[str, UUID | datetime], expires_delta: timedelta
     ) -> str:
         to_encode = payload.copy()
         expire: datetime = datetime.now(UTC) + expires_delta
@@ -190,7 +190,7 @@ class AuthService:
             return None
 
         jwt: str = self._create_access_token(
-            payload={"sub": user.email}, expires_delta=self.jwt_ttl
+            payload={"sub": user.id}, expires_delta=self.jwt_ttl
         )
         return jwt
 
@@ -203,13 +203,16 @@ class AuthService:
             logger.warning(event="could_not_decode_token", error=str(e))
             return None
 
-        user_email: str | None = payload.get("sub")
-        if user_email is None:
+        user_id: UUID | None = payload.get("sub")
+        if user_id is None:
             logger.error(event="no_user_in_payload")
             return None
 
         async with self._uow_factory() as uow:
-            user: User | None = await uow.user.get_user_by_email(email=user_email)
+            user: User | None = await uow.user.get_by_id(user_id=user_id)
+        if user is None:
+            logger.warning(event="token_user_not_found", user_email=user_id)
+            return None
 
         if user.status != UserStatus.ACTIVE:
             return None

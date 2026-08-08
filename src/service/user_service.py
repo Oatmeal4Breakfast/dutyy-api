@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from sqlalchemy.ext.asyncio import async_sessionmaker
+from typing import TYPE_CHECKING, Callable
 
 
 from src.domain.exceptions import DomainValidationError
@@ -9,6 +10,8 @@ from src.logger import get_logger
 
 if TYPE_CHECKING:
     from uuid import UUID
+    from src.bus.bus import EventBus
+    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 logger = get_logger(__name__)
 
@@ -20,13 +23,18 @@ class UserNotFoundError(Exception):
 
 
 class UserService:
-    def __init__(self, uow: AbstractUnitOfWork) -> None:
-        self._uow = uow
+    def __init__(
+        self,
+        uow_factory: Callable[
+            [async_sessionmaker[AsyncSession], EventBus], AbstractUnitOfWork
+        ],
+    ) -> None:
+        self._uow_factory: Callable = uow_factory
 
     async def get_all_users(
         self, page: int = 1, page_size: int = 100
     ) -> list[UserSummary]:
-        async with self._uow as uow:
+        async with self._uow_factory() as uow:
             users: list[UserSummary] = await uow.user.get_all(
                 page=page, page_size=page_size
             )
@@ -34,7 +42,7 @@ class UserService:
 
     async def create_user(self, fname: str, lname: str, email: str) -> UserSummary:
         user = User.create(first_name=fname, last_name=lname, email=email)
-        async with self._uow as uow:
+        async with self._uow_factory() as uow:
             await uow.user.add(user)
             user = user.to_summary()
             await uow.commit()
@@ -44,7 +52,7 @@ class UserService:
         return user
 
     async def get_user_by_id(self, user_id: UUID) -> UserSummary:
-        async with self._uow as uow:
+        async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_by_id(user_id=user_id)
 
             if user is None:
@@ -55,7 +63,7 @@ class UserService:
         self, user_id: UUID, changes: UserUpdateFields
     ) -> UserSummary:
         errors: list[str] = []
-        async with self._uow as uow:
+        async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_by_id(user_id)
 
             if user is None:
@@ -94,7 +102,7 @@ class UserService:
             return user.to_summary()
 
     async def update_password_hash(self, user_id: UUID, new_hash: str) -> UserSummary:
-        async with self._uow as uow:
+        async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_by_id(user_id)
 
             if user is None:
