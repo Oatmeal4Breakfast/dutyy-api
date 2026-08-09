@@ -47,3 +47,11 @@ class TestAPIRepo:
 
         assert len(results) == 1
         assert results[0].status == APIKeyStatus.INACTIVE
+
+    async def test_get_api_key_by_hash_success(self, session, api_key):
+        repo = APIRepo(session)
+
+        test_results: APIKey | None = await repo.get_by_hash(api_key.key_hash)
+
+        assert isinstance(test_results, APIKey)
+        assert test_results.key_hash == api_key.key_hash

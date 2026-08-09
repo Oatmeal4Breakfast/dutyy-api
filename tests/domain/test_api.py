@@ -85,3 +85,13 @@ def test_mark_inactive_changes_status() -> None:
     api_key.mark_inactive()
 
     assert api_key.status == APIKeyStatus.INACTIVE
+
+
+def test_issue_success(user) -> None:
+    raw_key, key = APIKey.issue(
+        user_id=user.id, name="macbook_pro", ttl=timedelta(days=90)
+    )
+    now = datetime.now(UTC)
+    assert isinstance(raw_key, str)
+    assert isinstance(key, APIKey)
+    assert now - key.created_date < timedelta(seconds=0.01)

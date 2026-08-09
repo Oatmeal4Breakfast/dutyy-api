@@ -73,3 +73,18 @@ class APIRepo:
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
+
+    async def get_by_hash(self, hash: str) -> APIKey | None:
+        stmt: Select[Any] = select(api_key_table).where(
+            api_key_table.c.key_hash == hash
+        )
+
+        try:
+            result: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        row: RowMapping | None = result.mappings().one_or_none()
+
+        return APIKey(**row) if row is not None else None
