@@ -3,6 +3,7 @@ import jwt
 import asyncio
 import hashlib
 
+from uuid import UUID
 from datetime import timedelta, datetime, UTC
 from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
@@ -25,7 +26,6 @@ from src.domain.exceptions import DomainValidationError
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
     from src.bus.bus import EventBus
-    from uuid import UUID
 
 logger = get_logger(__name__)
 
@@ -171,7 +171,7 @@ class AuthService:
             return user
 
     def _create_access_token(
-        self, payload: dict[str, UUID | datetime], expires_delta: timedelta
+        self, payload: dict[str, str | datetime], expires_delta: timedelta
     ) -> str:
         to_encode = payload.copy()
         expire: datetime = datetime.now(UTC) + expires_delta
@@ -190,11 +190,11 @@ class AuthService:
             return None
 
         jwt: str = self._create_access_token(
-            payload={"sub": user.id}, expires_delta=self.jwt_ttl
+            payload={"sub": str(user.id)}, expires_delta=self.jwt_ttl
         )
         return jwt
 
-    async def get_current_user(self, token: str) -> User | None:
+    def _subject_from_token(self, token: str) -> UUID | None:
         try:
             payload: dict[str, Any] = jwt.decode(
                 jwt=token, key=self.secret, algorithms=[self.algorithm]
@@ -203,18 +203,30 @@ class AuthService:
             logger.warning(event="could_not_decode_token", error=str(e))
             return None
 
-        user_id: UUID | None = payload.get("sub")
-        if user_id is None:
+        sub: str | None = payload.get("sub")
+
+        if sub is None:
             logger.error(event="no_user_in_payload")
+            return None
+
+        try:
+            user_id = UUID(sub)
+        except ValueError:
+            logger.error("invalid_auth_token", sub=sub)
+            return None
+
+        return user_id
+
+    async def get_current_user(self, token: str) -> User | None:
+        user_id: UUID | None = self._subject_from_token(token)
+
+        if user_id is None:
             return None
 
         async with self._uow_factory() as uow:
             user: User | None = await uow.user.get_by_id(user_id=user_id)
-        if user is None:
-            logger.warning(event="token_user_not_found", user_email=user_id)
-            return None
 
-        if user.status != UserStatus.ACTIVE:
+        if user is None or user.status != UserStatus.ACTIVE:
             return None
 
         return user
