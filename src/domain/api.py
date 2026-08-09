@@ -1,4 +1,6 @@
-from datetime import datetime, UTC
+import secrets
+import hashlib
+from datetime import datetime, UTC, timedelta
 from uuid import UUID, uuid7
 from typing import Any
 from dataclasses import dataclass, field, asdict
@@ -34,6 +36,22 @@ class APIKey:
 
         self.key_hash = norm_hash
         self.name = norm_name
+
+    @classmethod
+    def issue(cls, user_id: UUID, name: str, ttl: timedelta) -> tuple[str, "APIKey"]:
+        raw_key: str = secrets.token_urlsafe(32)
+        hashed_key: str = cls.hash_key(raw_key)
+        now: datetime = datetime.now(UTC)
+        return raw_key, cls(
+            key_hash=hashed_key, name=name, user_id=user_id, expires_at=ttl + now
+        )
+
+    @staticmethod
+    def hash_key(raw_key: str) -> str:
+        return hashlib.sha256(raw_key.encode()).hexdigest()
+
+    def touch(self) -> None:
+        self.last_used = datetime.now(UTC)
 
     def mark_inactive(self) -> None:
         self.status = APIKeyStatus.INACTIVE
