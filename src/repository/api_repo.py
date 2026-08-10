@@ -19,7 +19,6 @@ logger = get_logger(__name__)
 class APIRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        self.seen: set[APIKey] = set()
 
     async def get_by_user_id(self, user_id: UUID) -> list[APIKey]:
         stmt: Select[Any] = select(api_key_table).where(
@@ -41,7 +40,6 @@ class APIRepo:
 
         try:
             await self._session.flush()
-            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=RepoError.INTEGRITY_CONFLICT,
@@ -62,7 +60,6 @@ class APIRepo:
         try:
             await self._session.execute(stmt)
             await self._session.flush()
-            self.seen.add(entity)
         except IntegrityError:
             logger.error(
                 event=RepoError.INTEGRITY_CONFLICT,
@@ -78,6 +75,19 @@ class APIRepo:
         stmt: Select[Any] = select(api_key_table).where(
             api_key_table.c.key_hash == hash
         )
+
+        try:
+            result: Result[Any] = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        row: RowMapping | None = result.mappings().one_or_none()
+
+        return APIKey(**row) if row is not None else None
+
+    async def get_by_id(self, key_id: UUID) -> APIKey | None:
+        stmt: Select[Any] = select(api_key_table).where(api_key_table.c.id == key_id)
 
         try:
             result: Result[Any] = await self._session.execute(stmt)

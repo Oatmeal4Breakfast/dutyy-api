@@ -36,7 +36,7 @@ class AbstractUnitOfWork(ABC):
     async def __aexit__(self, exc_type, *_) -> None: ...
 
     async def publish_events(self) -> None:
-        registered_repos: list = [self.dutyy, self.project, self.user, self.api]
+        registered_repos: list = [self.dutyy, self.project, self.user]
         events: list[Event] = []
 
         for repo in registered_repos:
