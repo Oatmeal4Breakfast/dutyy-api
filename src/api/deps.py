@@ -9,6 +9,7 @@ from src.db.uow import UnitOfWork
 from src.service.auth_service import AuthService
 from src.service.user_service import UserService
 from src.bus.bus import EventBus
+from src.service.api_service import APIService
 
 from sqlalchemy.ext.asyncio.session import async_sessionmaker, AsyncSession
 
@@ -30,6 +31,10 @@ def get_auth_service(request: Request) -> AuthService:
 
 def get_user_service(request) -> UserService:
     return request.app.state.user_service
+
+
+def get_api_service(request) -> APIService:
+    return request.app.state.api_service
 
 
 def get_uow(
