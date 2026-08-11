@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.service.api_service import APIService
 from typing import TYPE_CHECKING
 from functools import partial
 
@@ -40,18 +41,20 @@ async def lifespan(app: FastAPI):
     engine, session_factory = create_engine_and_session(config)
     bus = EventBus()
     uow_factory: partial[UnitOfWork] = partial(UnitOfWork, session_factory, bus)
-    auth_service = AuthService(
+    app.state.session_factory: async_sessionmaker[AsyncSession] = session_factory
+    app.state.event_bus: EventBus = bus
+    app.state.auth_service = AuthService(
         uow_factory=uow_factory,
         auth_service_config=auth_config,
     )
-    email_service = EmailService(email_config, frontend_url=config.frontend_url)
-    user_service = UserService(uow_factory=uow_factory)
-    app.state.session_factory: async_sessionmaker[AsyncSession] = session_factory
-    app.state.event_bus: EventBus = bus
-    app.state.auth_service = auth_service
-    app.state.email_service = email_service
-    app.state.user_service = user_service
-    register_event_handlers(bus, auth_service=auth_service, email_service=email_service)
+    app.state.email_service = EmailService(
+        email_service_config=email_config, frontend_url=config.frontend_url
+    )
+    app.state.user_service = UserService(uow_factory=uow_factory)
+    app.state.api_service = APIService(uow_factory=uow_factory)
+    register_event_handlers(
+        bus, auth_service=app.state.auth_service, email_service=app.state.email_service
+    )
     yield
     await bus.drain()
     await engine.dispose()
