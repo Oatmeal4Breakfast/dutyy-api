@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.repository.abstract_repo import Operation, RepoError
-from src.domain.api import APIKey
+from src.domain.api import APIKey, APIKeySummary
 from src.db.orm import api_key_table
 from src.logger import get_logger
 
@@ -20,10 +20,14 @@ class APIRepo:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_by_user_id(self, user_id: UUID) -> list[APIKey]:
-        stmt: Select[Any] = select(api_key_table).where(
-            api_key_table.c.user_id == user_id
-        )
+    async def get_by_user_id(self, user_id: UUID) -> list[APIKeySummary]:
+        stmt: Select[Any] = select(
+            api_key_table.c.name,
+            api_key_table.c.status,
+            api_key_table.c.created_at,
+            api_key_table.c.last_used,
+            api_key_table.c.expires_at,
+        ).where(api_key_table.c.user_id == user_id)
 
         try:
             result: Result[Any] = await self._session.execute(stmt)
@@ -33,7 +37,7 @@ class APIRepo:
 
         rows: Sequence[RowMapping] = result.mappings().all()
 
-        return [APIKey(**row) for row in rows]
+        return [APIKeySummary(**row) for row in rows]
 
     async def add(self, entity: APIKey) -> None:
         self._session.add(entity)

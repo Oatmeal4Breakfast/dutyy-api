@@ -14,6 +14,15 @@ class APIKeyStatus(StrEnum):
     INACTIVE = auto()
 
 
+@dataclass(frozen=True)
+class APIKeySummary:
+    name: str
+    status: APIKeyStatus
+    created_at: datetime
+    last_used: datetime | None = None
+    expires_at: datetime | None = None
+
+
 @dataclass
 class APIKey:
     key_hash: str
