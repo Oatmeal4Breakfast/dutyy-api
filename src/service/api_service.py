@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-from src.domain.api import APIKey, APIKeyStatus
+from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from src.db.uow import AbstractUnitOfWork
 from src.logger import get_logger
 
@@ -74,3 +74,9 @@ class APIService:
             await uow.commit()
 
         logger.info(event="api_key_revoked", key_id=str(key_id), user_id=str(user_id))
+
+    async def get_keys_by_user_id(self, user_id: UUID) -> list[APIKeySummary]:
+        async with self._uow_factory() as uow:
+            keys: list[APIKeySummary] = await uow.api.get_by_user_id(user_id=user_id)
+            logger.info(event="retrieved_keys", count=len(keys), user_id=str(user_id))
+            return keys
