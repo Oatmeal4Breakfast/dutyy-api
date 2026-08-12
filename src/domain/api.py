@@ -16,6 +16,7 @@ class APIKeyStatus(StrEnum):
 
 @dataclass(frozen=True)
 class APIKeySummary:
+    id: UUID
     name: str
     status: APIKeyStatus
     created_at: datetime

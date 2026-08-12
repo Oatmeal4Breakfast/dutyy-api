@@ -22,6 +22,7 @@ class APIRepo:
 
     async def get_by_user_id(self, user_id: UUID) -> list[APIKeySummary]:
         stmt: Select[Any] = select(
+            api_key_table.c.id,
             api_key_table.c.name,
             api_key_table.c.status,
             api_key_table.c.created_at,
