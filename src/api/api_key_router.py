@@ -30,7 +30,6 @@ class APIKeyExpiry(StrEnum):
 
 
 class IssueKeyRequest(BaseModel):
-    user_id: UUID
     key_name: str
     ttl: APIKeyExpiry
 
@@ -47,16 +46,19 @@ class APIKeyResponse(BaseModel):
 router = APIRouter(
     prefix="/dutyy/api/v1/api-keys",
     tags=["auth", "api-keys"],
-    dependencies=[Depends(get_current_user)],
 )
 
 _APIService = Annotated[APIService, Depends(get_api_service)]
 
 
 @router.post(path="", status_code=201)
-async def issue_new_key(request: IssueKeyRequest, service: _APIService):
+async def issue_new_key(
+    current_user: Annotated[User, Depends(get_current_user)],
+    request: IssueKeyRequest,
+    service: _APIService,
+):
     raw_key: str = await service.issue_new_key(
-        user_id=request.user_id,
+        user_id=current_user.id,
         key_name=request.key_name,
         ttl=request.ttl.to_timedelta(),
     )
@@ -71,3 +73,12 @@ async def get_api_keys(
         user_id=current_user.id
     )
     return [APIKeyResponse.model_validate(key) for key in keys]
+
+
+@router.delete(path="/{key_id}", status_code=204)
+async def delete_key(
+    current_user: Annotated[User, Depends(get_current_user)],
+    service: _APIService,
+    key_id: UUID,
+):
+    await service.revoke(user_id=current_user.id, key_id=key_id)
