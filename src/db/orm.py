@@ -10,6 +10,7 @@ from sqlalchemy import (
     Table,
     Column,
     MetaData,
+    Index,
 )
 from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.project import Project, ProjectStatus
@@ -77,6 +78,14 @@ api_key_table = Table(
     Column("expires_at", DateTime(timezone=True), nullable=True),
     Column("created_date", DateTime(timezone=True), nullable=False),
     Column("id", UUID, primary_key=True),
+)
+
+Index(
+    "uq_api_keys_active_name",
+    api_key_table.c.user_id,
+    api_key_table.c.name,
+    unique=True,
+    postgresql_where=(api_key_table.c.status == APIKeyStatus.ACTIVE),
 )
 
 password_set_tokens_table = Table(
