@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.domain.api import APIKey
 
 from typing import Annotated
 from fastapi import Request, Depends, HTTPException, status
@@ -60,3 +61,30 @@ async def get_current_user(
         raise credentials_exception
 
     return current_user.to_summary()
+
+
+async def get_api_key(
+    request: Request, service: Annotated[APIService, Depends(get_api_service)]
+) -> APIKey:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate api key",
+        headers={"WWW-Authenticate": "X-API-Key"},
+    )
+
+    raw_key: str | None = request.headers.get("X-API-Key")
+    if raw_key is None:
+        raise credentials_exception
+
+    api_key: APIKey | None = await service.verify(raw_key=raw_key)
+    if api_key is None:
+        raise credentials_exception
+
+    return api_key
+
+
+async def get_api_key_user(
+    key: Annotated[APIKey, Depends(get_api_key)],
+    service: Annotated[UserService, Depends(get_user_service)],
+) -> UserSummary:
+    return await service.get_user_by_id(user_id=key.user_id)
