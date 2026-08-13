@@ -27,6 +27,7 @@ from src.domain.dutyy import Dutyy
 from src.domain.api import APIKey
 from src.service.user_service import UserService
 from src.service.auth_service import AuthService
+from src.service.api_service import APIService
 
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
@@ -98,6 +99,10 @@ def make_auth_service(session, event_bus) -> AuthService:
     )
 
 
+def make_api_service(session, event_bus) -> APIService:
+    return APIService(uow_factory=partial(FakeUnitOfWork, session, event_bus))
+
+
 @pytest.fixture(scope="session")
 def engine():
     return create_async_engine(TEST_DB_URI)
@@ -123,7 +128,11 @@ def setup_tables(engine):
 async def session(engine, setup_tables):
     connection = await engine.connect()
     trans = await connection.begin()
-    s = AsyncSession(bind=connection, join_transaction_mode="create_savepoint")
+    s = AsyncSession(
+        bind=connection,
+        join_transaction_mode="create_savepoint",
+        expire_on_commit=False,
+    )
     yield s
     await s.close()
     await trans.rollback()
