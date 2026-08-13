@@ -25,7 +25,7 @@ class APIRepo:
             api_key_table.c.id,
             api_key_table.c.name,
             api_key_table.c.status,
-            api_key_table.c.created_at,
+            api_key_table.c.created_date,
             api_key_table.c.last_used,
             api_key_table.c.expires_at,
         ).where(api_key_table.c.user_id == user_id)

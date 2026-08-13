@@ -1,7 +1,7 @@
 import pytest
 
 from src.repository.api_repo import APIRepo
-from src.domain.api import APIKey, APIKeyStatus
+from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from tests.conftest import make_api_key
 
 
@@ -10,17 +10,17 @@ class TestAPIRepo:
     async def test_add_and_get_by_user_id(self, session, api_key, user):
         repo = APIRepo(session)
 
-        results: list[APIKey] = await repo.get_by_user_id(user.id)
+        results: list[APIKeySummary] = await repo.get_by_user_id(user.id)
 
         assert len(results) == 1
-        assert isinstance(results[0], APIKey)
+        assert isinstance(results[0], APIKeySummary)
         assert results[0].id == api_key.id
-        assert results[0].user_id == user.id
+        assert results[0].status == api_key.status
 
     async def test_get_by_user_id_returns_empty_list(self, session, user):
         repo = APIRepo(session)
 
-        results: list[APIKey] = await repo.get_by_user_id(user.id)
+        results: list[APIKeySummary] = await repo.get_by_user_id(user.id)
 
         assert isinstance(results, list)
         assert len(results) == 0
@@ -31,7 +31,7 @@ class TestAPIRepo:
         second_key = make_api_key(user.id, name="ipad")
         await repo.add(second_key)
 
-        results: list[APIKey] = await repo.get_by_user_id(user.id)
+        results: list[APIKeySummary] = await repo.get_by_user_id(user.id)
 
         assert len(results) == 2
 
@@ -43,7 +43,7 @@ class TestAPIRepo:
         api_key.mark_inactive()
         await repo.update(api_key)
 
-        results: list[APIKey] = await repo.get_by_user_id(user.id)
+        results: list[APIKeySummary] = await repo.get_by_user_id(user.id)
 
         assert len(results) == 1
         assert results[0].status == APIKeyStatus.INACTIVE

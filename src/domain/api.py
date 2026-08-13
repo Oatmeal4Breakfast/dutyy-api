@@ -19,7 +19,7 @@ class APIKeySummary:
     id: UUID
     name: str
     status: APIKeyStatus
-    created_at: datetime
+    created_date: datetime
     last_used: datetime | None = None
     expires_at: datetime | None = None
 
