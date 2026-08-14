@@ -1,13 +1,14 @@
 import pytest
 
 from datetime import datetime, timedelta, UTC
+from uuid import uuid7
 
 from structlog.testing import capture_logs
 
 from tests.conftest import make_api_service
 
 from src.service.api_service import APIService
-from src.domain.api import APIKey, APIKeyStatus
+from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from src.repository.api_repo import APIRepo
 
 
@@ -115,3 +116,50 @@ class TestAPIService:
 
         assert persisted is not None
         assert persisted.status == APIKeyStatus.INACTIVE
+
+    async def test_revoke_no_key_found_is_noop(self, user, session, event_bus):
+        repo = APIRepo(session)
+        service = make_api_service(session, event_bus)
+
+        _, key = APIKey.issue(user_id=user.id, name="test_key", ttl=timedelta(days=1))
+        await repo.add(key)
+
+        with capture_logs() as logs:
+            result = await service.revoke(user_id=user.id, key_id=uuid7())
+
+        assert result is None
+        assert not any(log["event"] == "access_denied" for log in logs)
+        assert not any(log["event"] == "api_key_revoked" for log in logs)
+        persisted: APIKey | None = await repo.get_by_id(key_id=key.id)
+        assert persisted is not None
+        assert persisted.status == APIKeyStatus.ACTIVE
+
+    async def test_revoke_denies_wrong_user(self, user, session, event_bus):
+        repo = APIRepo(session)
+        service = make_api_service(session, event_bus)
+
+        _, key = APIKey.issue(user_id=user.id, name="test_key", ttl=timedelta(days=1))
+
+        await repo.add(key)
+
+        with capture_logs() as logs:
+            result = await service.revoke(user_id=uuid7(), key_id=key.id)
+
+        assert result is None
+        assert any(log["event"] == "access_denied" for log in logs)
+        persists: APIKey | None = await repo.get_by_id(key_id=key.id)
+        assert persists is not None
+        assert persists.status == APIKeyStatus.ACTIVE
+
+    async def test_get_key_by_user_id_returns_summary(self, session, event_bus, user):
+        service: APIService = make_api_service(session, event_bus)
+
+        await service.issue_new_key(
+            user_id=user.id, key_name="test_key", ttl=timedelta(days=1)
+        )
+
+        test_results: list[APIKeySummary] = await service.get_keys_by_user_id(user.id)
+
+        assert len(test_results) > 0
+        assert isinstance(test_results, list)
+        assert isinstance(test_results[0], APIKeySummary)
