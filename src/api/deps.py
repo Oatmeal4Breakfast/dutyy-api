@@ -30,11 +30,11 @@ def get_auth_service(request: Request) -> AuthService:
     return request.app.state.auth_service
 
 
-def get_user_service(request) -> UserService:
+def get_user_service(request: Request) -> UserService:
     return request.app.state.user_service
 
 
-def get_api_service(request) -> APIService:
+def get_api_service(request: Request) -> APIService:
     return request.app.state.api_service
 
 
@@ -56,7 +56,6 @@ async def get_current_user(
     )
 
     current_user: User | None = await service.get_current_user(token)
-
     if current_user is None:
         raise credentials_exception
 
