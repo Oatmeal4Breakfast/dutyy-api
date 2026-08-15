@@ -38,7 +38,7 @@ class APIKeyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     name: str
     status: APIKeyStatus
-    created_at: datetime
+    created_date: datetime
     last_used: datetime | None
     expires_at: datetime | None
 
