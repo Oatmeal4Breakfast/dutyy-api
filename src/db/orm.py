@@ -17,6 +17,7 @@ from src.domain.project import Project, ProjectStatus
 from src.domain.user import User, UserStatus
 from src.domain.api import APIKey, APIKeyStatus
 from src.domain.token import PasswordSetToken
+from src.domain.device_auth import DeviceCode, DeviceCodeStatus
 
 
 mapper_registry = registry()
@@ -112,6 +113,21 @@ project_user_table = Table(
         "project_id", ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
     ),
 )
+
+device_auth_code_table = Table(
+    "device_auth_code",
+    metadata,
+    Column(
+        "device_code",
+        String,
+        primary_key=True,
+    ),
+    Column("user_code", String, nullable=True, unique=True, indexed=True),
+    Column("status", Enum(DeviceCodeStatus), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), nullable=True),
+)
+
 mapper_registry.map_imperatively(Dutyy, dutyy_table)
 mapper_registry.map_imperatively(
     Project, projects_table, properties={"dutyys": relationship(Dutyy, lazy="raise")}
@@ -119,3 +135,4 @@ mapper_registry.map_imperatively(
 mapper_registry.map_imperatively(User, users_table)
 mapper_registry.map_imperatively(APIKey, api_key_table)
 mapper_registry.map_imperatively(PasswordSetToken, password_set_tokens_table)
+mapper_registry.map_imperatively(DeviceCode, device_auth_code_table)
