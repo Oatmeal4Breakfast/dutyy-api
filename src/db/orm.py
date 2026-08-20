@@ -118,7 +118,7 @@ device_auth_code_table = Table(
     "device_auth_code",
     metadata,
     Column(
-        "device_code",
+        "hashed_device_code",
         String,
         primary_key=True,
     ),
