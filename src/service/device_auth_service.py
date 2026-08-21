@@ -1,5 +1,4 @@
 from __future__ import annotations
-from src.domain.user import User
 
 from typing import TYPE_CHECKING, Callable
 
@@ -9,6 +8,7 @@ from src.logger import get_logger
 from src.db.uow import AbstractUnitOfWork
 
 if TYPE_CHECKING:
+    from uuid import UUID
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)
@@ -23,5 +23,5 @@ class DeviceAuthService:
     ) -> None:
         self._uow_factory: Callable = uow_factory
 
-    async def approve(self, user_code: str, user: User) -> None:
+    async def approve(self, user_code: str, user_id: UUID) -> None:
         pass
