@@ -1,7 +1,8 @@
 import secrets
+from functools import lru_cache
 from enum import StrEnum, auto
 from urllib.parse import quote_plus
-from pydantic import Field
+from pydantic import Field, AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from datetime import timedelta
 
@@ -54,13 +55,34 @@ class EmailServiceConfig(BaseSettings):
     sender_email: str
 
 
+class DeviceAuthConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_prefix="DEVICE_AUTH_",
+    )
+
+    max_attempts: int = Field(defualt=3)
+    verification_base_uri: AnyHttpUrl
+
+
+@lru_cache
 def get_config() -> Config:
     return Config()
 
 
+@lru_cache
 def get_auth_service_config() -> AuthServiceConfig:
     return AuthServiceConfig()
 
 
+@lru_cache
 def get_email_service_config() -> EmailServiceConfig:
     return EmailServiceConfig()
+
+
+@lru_cache
+def get_device_auth_config() -> DeviceAuthConfig:
+    return DeviceAuthConfig()
