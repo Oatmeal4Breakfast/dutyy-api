@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import select, update, delete, func, or_
 from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy import CursorResult
 
 from src.repository.abstract_repo import RepoError, Operation
 from src.domain.device_auth import DeviceCodeStatus, DeviceCode, DeviceCodeDict
@@ -129,6 +130,7 @@ class DeviceAuthRepo:
 
         try:
             result: Result = await self._session.execute(stmt)
+            result = cast(CursorResult, result)
             await self._session.flush()
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.DELETE)

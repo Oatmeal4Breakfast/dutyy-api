@@ -10,6 +10,7 @@ from src.repository.user_repo import UserRepo
 from src.repository.api_repo import APIRepo
 from src.repository.health_repo import HealthRepo
 from src.repository.token_repo import PasswordSetTokenRepo
+from src.repository.device_auth_repo import DeviceAuthRepo
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class AbstractUnitOfWork(ABC):
     api: APIRepo
     health: HealthRepo
     token: PasswordSetTokenRepo
+    device_auth: DeviceAuthRepo
     _session: AsyncSession
 
     @abstractmethod
@@ -73,6 +75,7 @@ class UnitOfWork(AbstractUnitOfWork):
         self.api = APIRepo(self._session)
         self.health = HealthRepo(self._session)
         self.token = PasswordSetTokenRepo(self._session)
+        self.device_auth = DeviceAuthRepo(self._session)
         return self
 
     async def __aexit__(self, exc_type, *_) -> None:
