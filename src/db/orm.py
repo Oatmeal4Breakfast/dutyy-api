@@ -122,7 +122,7 @@ device_auth_code_table = Table(
         String,
         primary_key=True,
     ),
-    Column("user_code", String, nullable=True, unique=True, index=True),
+    Column("user_code", String, nullable=False, unique=True, index=True),
     Column("status", Enum(DeviceCodeStatus), nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), nullable=True),

@@ -27,7 +27,7 @@ class DeviceCodeDict(TypedDict):
 @dataclass
 class DeviceCode:
     hashed_device_code: str
-    user_code: str | None
+    user_code: str
     status: DeviceCodeStatus
     expires_at: datetime
     user_id: UUID | None = None
@@ -43,7 +43,7 @@ class DeviceCode:
         return f"{part_1}-{part_2}"
 
     @classmethod
-    def issue(cls, expires_at: datetime | None) -> tuple[str, "DeviceCode"]:
+    def issue(cls, expires_at: datetime | None = None) -> tuple[str, "DeviceCode"]:
         raw_code: str = secrets.token_urlsafe(32)
         return raw_code, cls(
             hashed_device_code=cls.hash_device_code(raw_code),
