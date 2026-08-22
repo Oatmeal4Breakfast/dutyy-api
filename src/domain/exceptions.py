@@ -29,3 +29,8 @@ class ProjectAlreadyExistsError(Exception):
     def __init__(self, name: str) -> None:
         self.name = name
         super().__init__(f"project with name {self.name} already exists")
+
+
+class DeviceCodeCollisionError(Exception):
+    def __init__(self) -> None:
+        super().__init__("device_code collision error")
