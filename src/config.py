@@ -18,11 +18,11 @@ class Config(BaseSettings):
         env_file=".env", case_sensitive=False, env_file_encoding="utf-8", extra="ignore"
     )
 
-    postgres_user: str
-    postgres_host: str
-    postgres_db: str
-    postgres_password: str
-    frontend_url: str
+    postgres_user: str = Field(default=...)
+    postgres_host: str = Field(default=...)
+    postgres_db: str = Field(default=...)
+    postgres_password: str = Field(default=...)
+    frontend_url: str = Field(default=...)
     postgres_port: int = Field(default=5432, ge=1, le=65535)
     max_overflow: int = Field(default=10)
     pool_size: int = Field(default=5)
@@ -41,7 +41,7 @@ class AuthServiceConfig(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
-    token_ttl: timedelta
+    token_ttl: timedelta = Field(default=...)
     secret: str = Field(default_factory=lambda: secrets.token_hex(16))
     jwt_ttl: timedelta = Field(default_factory=lambda: timedelta(minutes=15))
     algorithm: str = "HS256"
@@ -51,8 +51,8 @@ class EmailServiceConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", case_sensitive=False, env_file_encoding="utf-8", extra="ignore"
     )
-    resend_api_key: str
-    sender_email: str
+    resend_api_key: str = Field(default=...)
+    sender_email: str = Field(default=...)
 
 
 class DeviceAuthConfig(BaseSettings):
@@ -64,8 +64,8 @@ class DeviceAuthConfig(BaseSettings):
         env_prefix="DEVICE_AUTH_",
     )
 
-    max_attempts: int = Field(defualt=3)
-    verification_base_uri: AnyHttpUrl
+    max_attempts: int = Field(default=3)
+    verification_base_uri: AnyHttpUrl = Field(default=...)
 
 
 @lru_cache

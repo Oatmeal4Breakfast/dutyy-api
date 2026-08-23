@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from dataclasses import dataclass, asdict
 from typing import TYPE_CHECKING, Callable
+from enum import StrEnum, auto
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +19,19 @@ if TYPE_CHECKING:
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)
+
+
+class PollStatus(StrEnum):
+    PENDING = auto()
+    APPROVED = auto()
+    EXPIRED = auto()
+    INVALID = auto()
+
+
+@dataclass(frozen=True)
+class PollResult:
+    status: PollStatus
+    user_id: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -105,3 +119,27 @@ class DeviceAuthService:
                 except IntegrityError:
                     continue
         raise DeviceCodeCollisionError()
+
+    async def poll(self, device_code: str) -> PollResult:
+        hash: str = DeviceCode.hash_device_code(device_code)
+        async with self._uow_factory() as uow:
+            consumed: DeviceCode | None = await uow.device_auth.consume(
+                hashed_device_code=hash
+            )
+
+            if consumed is not None:
+                await uow.commit()
+                return PollResult(status=PollStatus.APPROVED, user_id=consumed.user_id)
+
+            code: DeviceCode | None = await uow.device_auth.get_code_by_hash(hash)
+            return PollResult(status=self._status_for_unconsumed(code))
+
+    @staticmethod
+    def _status_for_unconsumed(code: DeviceCode | None) -> PollStatus:
+        if code is None:
+            return PollStatus.INVALID
+        if code.is_expired():
+            return PollStatus.EXPIRED
+        if code.status is DeviceCodeStatus.PENDING:
+            return PollStatus.PENDING
+        return PollStatus.INVALID
