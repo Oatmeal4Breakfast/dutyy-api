@@ -66,6 +66,7 @@ class DeviceAuthConfig(BaseSettings):
 
     max_attempts: int = Field(default=3)
     verification_base_uri: AnyHttpUrl = Field(default=...)
+    interval: int = Field(default=5)
 
 
 @lru_cache
