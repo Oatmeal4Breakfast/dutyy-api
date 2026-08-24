@@ -1,12 +1,14 @@
 from __future__ import annotations
 from typing import Annotated
+from datetime import datetime, UTC
 
 from fastapi import Depends, APIRouter, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
 
-from src.api.deps import get_auth_service
+from src.api.deps import get_auth_service, get_device_auth_service
 from src.service.auth_service import AuthService
+from src.service.device_auth_service import DeviceAuthService
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -31,6 +33,14 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
+class DeviceAuthStartResponse(BaseModel):
+    device_code: str
+    user_code: str
+    expires_in: int
+    verification_uri: str
+    interval: int
+
+
 credentials_exception = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
     detail="Invalid username or password",
@@ -39,6 +49,7 @@ credentials_exception = HTTPException(
 router = APIRouter(prefix="/dutyy/api/v1/auth", tags=["auth"])
 
 _AuthService = Annotated[AuthService, Depends(get_auth_service)]
+_DeviceAuthService = Annotated[DeviceAuthService, Depends(get_device_auth_service)]
 
 
 @router.post(path="/set-password", status_code=204)
@@ -63,3 +74,17 @@ async def login(request: LoginRequest, service: _AuthService):
 async def request_password_reset(request: PasswordResetRequest, service: _AuthService):
     await service.handle_password_reset(user_email=request.email)
     return Response(status_code=204)
+
+
+@router.post(
+    path="/device/code", status_code=200, response_model=DeviceAuthStartResponse
+)
+async def start_device_auth(service: _DeviceAuthService):
+    data = await service.start()
+    return DeviceAuthStartResponse(
+        device_code=data.raw_device_code,
+        user_code=data.user_code,
+        expires_in=int((data.expires_at - datetime.now(UTC)).total_seconds()),
+        verification_uri=data.verification_uri,
+        interval=data.interval,
+    )
