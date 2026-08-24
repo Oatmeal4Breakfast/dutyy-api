@@ -1,14 +1,13 @@
-from __future__ import annotations
-from src.domain.api import APIKey
-
 from typing import Annotated
 from fastapi import Request, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from src.domain.user import UserSummary, User
+from src.domain.api import APIKey
 from src.db.uow import UnitOfWork
 from src.service.auth_service import AuthService
 from src.service.user_service import UserService
+from src.service.device_auth_service import DeviceAuthService
 from src.bus.bus import EventBus
 from src.service.api_service import APIService
 
@@ -28,6 +27,10 @@ def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
 
 def get_auth_service(request: Request) -> AuthService:
     return request.app.state.auth_service
+
+
+def get_device_auth_service(request: Request) -> DeviceAuthService:
+    return request.app.state.device_auth_service
 
 
 def get_user_service(request: Request) -> UserService:

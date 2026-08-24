@@ -18,6 +18,7 @@ from src.domain.exceptions import (
 from src.bootstrap import register_event_handlers
 from src.bus.bus import EventBus
 from src.service.user_service import UserNotFoundError, UserService
+from src.service.device_auth_service import DeviceAuthService
 from src.service.auth_service import AuthService
 from src.service.email_service import EmailService
 from src.db.db import create_engine_and_session
@@ -25,6 +26,7 @@ from src.config import (
     get_config,
     get_auth_service_config,
     get_email_service_config,
+    get_device_auth_config,
 )
 from src.logger import config_logger
 
@@ -46,6 +48,9 @@ async def lifespan(app: FastAPI):
     app.state.auth_service = AuthService(
         uow_factory=uow_factory,
         auth_service_config=auth_config,
+    )
+    app.state.device_auth_service = DeviceAuthService(
+        config=get_device_auth_config(), uow_factory=uow_factory
     )
     app.state.email_service = EmailService(
         email_service_config=email_config, frontend_url=config.frontend_url
