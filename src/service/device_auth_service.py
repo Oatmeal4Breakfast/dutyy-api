@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 from enum import StrEnum, auto
 
@@ -40,9 +40,7 @@ class DeviceCodeClientData:
     user_code: str
     expires_at: datetime
     verification_uri: str
-
-    def to_dict(self) -> dict[str, str | datetime]:
-        return asdict(self)
+    interval: int
 
 
 @dataclass(frozen=True)
@@ -62,6 +60,7 @@ class DeviceAuthService:
     ) -> None:
         self._uow_factory: Callable = uow_factory
         self.max_attempts: int = config.max_attempts
+        self.interval: int = config.interval
         self.verification_uri: str = config.verification_base_uri
 
     async def approve(
@@ -115,6 +114,7 @@ class DeviceAuthService:
                         user_code=hashed.user_code,
                         expires_at=hashed.expires_at,
                         verification_uri=self.verification_uri,
+                        interval=self.interval,
                     )
                 except IntegrityError:
                     continue
