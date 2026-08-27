@@ -1,17 +1,27 @@
 from __future__ import annotations
-from typing import Annotated
+from src.service.api_service import APIService
+from src.domain.user import User
+from src.domain.device_auth import KeyLifetime
+from src.api.deps import get_current_user
+from typing import Annotated, TYPE_CHECKING
 from datetime import datetime, UTC
 
 from fastapi import Depends, APIRouter, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
 
-from src.api.deps import get_auth_service, get_device_auth_service
+from src.api.deps import get_auth_service, get_device_auth_service, get_api_service
 from src.service.auth_service import AuthService
-from src.service.device_auth_service import DeviceAuthService
-from src.logger import get_logger
+from src.service.device_auth_service import (
+    DeviceAuthService,
+    PollStatus,
+    PollResult,
+    DeviceCodeClientData,
+    DeviceAuthError,
+)
 
-logger = get_logger(__name__)
+if TYPE_CHECKING:
+    from src.domain.device_auth import DeviceCode
 
 
 class SetPasswordRequest(BaseModel):
@@ -33,12 +43,34 @@ class TokenResponse(BaseModel):
     token_type: str
 
 
+class DeviceAuthStartRequest(BaseModel):
+    key_name: str | None = None
+    key_lifetime: KeyLifetime = KeyLifetime.THIRTY_DAYS
+
+
 class DeviceAuthStartResponse(BaseModel):
     device_code: str
     user_code: str
     expires_in: int
     verification_uri: str
     interval: int
+
+
+class DeviceAuthPollRequest(BaseModel):
+    device_code: str
+
+
+class DeviceTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class DeviceAuthApproveRequest(BaseModel):
+    user_code: str
+
+
+class DeviceAuthApproveResponse(BaseModel):
+    detail: str
 
 
 credentials_exception = HTTPException(
@@ -50,6 +82,7 @@ router = APIRouter(prefix="/dutyy/api/v1/auth", tags=["auth"])
 
 _AuthService = Annotated[AuthService, Depends(get_auth_service)]
 _DeviceAuthService = Annotated[DeviceAuthService, Depends(get_device_auth_service)]
+_APIService = Annotated[APIService, Depends(get_api_service)]
 
 
 @router.post(path="/set-password", status_code=204)
@@ -76,11 +109,24 @@ async def request_password_reset(request: PasswordResetRequest, service: _AuthSe
     return Response(status_code=204)
 
 
+_POLL_ERROR: dict[PollStatus, str] = {
+    PollStatus.PENDING: "authorization_pending",
+    PollStatus.EXPIRED: "expired_token",
+    PollStatus.INVALID: "invalid_grant",
+}
+
+
 @router.post(
     path="/device/code", status_code=200, response_model=DeviceAuthStartResponse
 )
-async def start_device_auth(service: _DeviceAuthService):
-    data = await service.start()
+async def start_device_auth(
+    service: _DeviceAuthService,
+    request: DeviceAuthStartRequest | None = None,
+):
+    request = request or DeviceAuthStartRequest()
+    data: DeviceCodeClientData = await service.start(
+        key_name=request.key_name, key_lifetime=request.key_lifetime
+    )
     return DeviceAuthStartResponse(
         device_code=data.raw_device_code,
         user_code=data.user_code,
@@ -88,3 +134,46 @@ async def start_device_auth(service: _DeviceAuthService):
         verification_uri=data.verification_uri,
         interval=data.interval,
     )
+
+
+@router.post(path="/device/token", status_code=200, response_model=DeviceTokenResponse)
+async def poll(
+    request: DeviceAuthPollRequest,
+    service: _DeviceAuthService,
+    api_service: _APIService,
+):
+    result: PollResult = await service.poll(device_code=request.device_code)
+
+    if result.status is not PollStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": _POLL_ERROR[result.status]},
+        )
+
+    raw_key: str = await api_service.issue_new_key(
+        user_id=result.user_id,
+        key_name=result.key_name,
+        ttl=result.key_lifetime.ttl,
+    )
+    return DeviceTokenResponse(access_token=raw_key)
+
+
+@router.post(
+    path="/device/auth", status_code=200, response_model=DeviceAuthApproveResponse
+)
+async def approve_device(
+    request: DeviceAuthApproveRequest,
+    service: _DeviceAuthService,
+    user: Annotated[User, Depends(get_current_user)],
+):
+    result: DeviceCode | DeviceAuthError = await service.approve(
+        request.user_code, user_id=user.id
+    )
+
+    if isinstance(result, DeviceAuthError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result.error or "approval failed",
+        )
+
+    return DeviceAuthApproveResponse(detail="Device approved. Return to your terminal.")
