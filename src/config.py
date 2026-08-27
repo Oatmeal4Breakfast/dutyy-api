@@ -42,9 +42,10 @@ class AuthServiceConfig(BaseSettings):
         extra="ignore",
     )
     token_ttl: timedelta = Field(default=...)
-    secret: str = Field(default_factory=lambda: secrets.token_hex(16))
+    secret: str = Field(default=...)
     jwt_ttl: timedelta = Field(default_factory=lambda: timedelta(minutes=15))
     algorithm: str = "HS256"
+    fake_password: str = Field(default_factory=lambda: secrets.token_hex(16))
 
 
 class EmailServiceConfig(BaseSettings):

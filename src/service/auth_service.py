@@ -50,6 +50,8 @@ class AuthService:
         self.secret: str = auth_service_config.secret
         self.algorithm: str = auth_service_config.algorithm
         self.token_ttl: timedelta = auth_service_config.token_ttl
+        self.fake_password: str = auth_service_config.fake_password
+        self.fake_password_hash: str = PasswordSetToken.hash_token(self.fake_password)
 
     async def set_password(self, raw_token: str, new_password: str) -> None:
         token_hash: str = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -148,7 +150,8 @@ class AuthService:
             user: User | None = await uow.user.get_user_by_email(email=user_email)
 
             if user is None:
-                logger.warn(event="user_not_found", user_email=user_email)
+                logger.warning(event="user_not_found", user_email=user_email)
+                await self.verify_hash(self.fake_password, self.fake_password_hash)
                 return None
 
             is_verified: bool = (
@@ -160,7 +163,7 @@ class AuthService:
             )
 
             if not is_verified:
-                logger.warn(event="password_incorrect", user_email=user_email)
+                logger.warning(event="password_incorrect", user_email=user_email)
                 return None
 
             logger.info(
