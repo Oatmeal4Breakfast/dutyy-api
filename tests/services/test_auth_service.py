@@ -9,7 +9,7 @@ from tests.conftest import make_auth_service
 
 from src.domain.events import UserCreated, PasswordTokenCreated
 from src.domain.token import PasswordSetToken
-from src.domain.user import User
+from src.domain.user import User, UserStatus
 from src.domain.exceptions import DomainValidationError
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
@@ -129,3 +129,19 @@ class TestAuthService:
         current: User | None = await auth_service.get_current_user(token)
         assert current is not None
         assert current.id == user.id
+
+    async def test_get_current_user_with_inactive_status(
+        self, session, event_bus, user
+    ):
+        user.update_status(status=UserStatus.BLOCKED)
+        await UserRepo(session).update(user)
+
+        auth_service = make_auth_service(session, event_bus)
+
+        token: str | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+
+        result: User | None = await auth_service.get_current_user(token)
+
+        assert result is None
