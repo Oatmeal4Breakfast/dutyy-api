@@ -2,7 +2,7 @@ import hashlib
 import secrets
 from uuid import UUID
 from typing import TypedDict, cast
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from enum import StrEnum, auto
 from datetime import datetime, timedelta, UTC
 
@@ -13,7 +13,25 @@ class DeviceCodeStatus(StrEnum):
     CONSUMED = auto()
 
 
+class KeyLifetime(StrEnum):
+    THIRTY_DAYS = auto()
+    NINETY_DAYS = auto()
+    ONE_YEAR = auto()
+
+    @property
+    def ttl(self) -> timedelta:
+        return {
+            KeyLifetime.THIRTY_DAYS: timedelta(days=30),
+            KeyLifetime.NINETY_DAYS: timedelta(days=90),
+            KeyLifetime.ONE_YEAR: timedelta(days=365),
+        }[self]
+
+
 CHAR_SET = "BCDFGHJKLMNPQRSTVWXYZ23456789"
+
+
+def _default_key_name() -> str:
+    return f"cli-{secrets.token_hex(3)}"
 
 
 class DeviceCodeDict(TypedDict):
@@ -21,6 +39,8 @@ class DeviceCodeDict(TypedDict):
     user_code: str | None
     status: DeviceCodeStatus
     expires_at: datetime
+    key_name: str
+    key_lifetime: KeyLifetime
     user_id: UUID | None
 
 
@@ -30,6 +50,8 @@ class DeviceCode:
     user_code: str
     status: DeviceCodeStatus
     expires_at: datetime
+    key_name: str = field(default_factory=_default_key_name)
+    key_lifetime: KeyLifetime = KeyLifetime.THIRTY_DAYS
     user_id: UUID | None = None
 
     @staticmethod
@@ -43,7 +65,12 @@ class DeviceCode:
         return f"{part_1}-{part_2}"
 
     @classmethod
-    def issue(cls, expires_at: datetime | None = None) -> tuple[str, "DeviceCode"]:
+    def issue(
+        cls,
+        expires_at: datetime | None = None,
+        key_name: str | None = None,
+        key_lifetime: KeyLifetime = KeyLifetime.THIRTY_DAYS,
+    ) -> tuple[str, "DeviceCode"]:
         raw_code: str = secrets.token_urlsafe(32)
         return raw_code, cls(
             hashed_device_code=cls.hash_device_code(raw_code),
@@ -52,6 +79,8 @@ class DeviceCode:
             expires_at=expires_at
             if expires_at is not None
             else (datetime.now(UTC) + timedelta(minutes=15)),
+            key_name=key_name if key_name is not None else _default_key_name(),
+            key_lifetime=key_lifetime,
         )
 
     def to_dict(self) -> DeviceCodeDict:

@@ -17,7 +17,7 @@ from src.domain.project import Project, ProjectStatus
 from src.domain.user import User, UserStatus
 from src.domain.api import APIKey, APIKeyStatus
 from src.domain.token import PasswordSetToken
-from src.domain.device_auth import DeviceCode, DeviceCodeStatus
+from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
 
 
 mapper_registry = registry()
@@ -125,6 +125,8 @@ device_auth_code_table = Table(
     Column("user_code", String, nullable=False, unique=True, index=True),
     Column("status", Enum(DeviceCodeStatus), nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("key_name", String, nullable=False),
+    Column("key_lifetime", Enum(KeyLifetime), nullable=False),
     Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), nullable=True),
 )
 

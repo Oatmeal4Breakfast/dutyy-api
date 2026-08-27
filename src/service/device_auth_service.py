@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from src.domain.exceptions import DeviceCodeCollisionError
-from src.domain.device_auth import DeviceCode, DeviceCodeStatus
+from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
 from src.config import DeviceAuthConfig
 from src.logger import get_logger
 from src.db.uow import AbstractUnitOfWork
@@ -32,6 +32,8 @@ class PollStatus(StrEnum):
 class PollResult:
     status: PollStatus
     user_id: UUID | None = None
+    key_name: str | None = None
+    key_lifetime: KeyLifetime | None = None
 
 
 @dataclass(frozen=True)
@@ -102,9 +104,13 @@ class DeviceAuthService:
 
             return device_code
 
-    async def start(self) -> DeviceCodeClientData:
+    async def start(
+        self,
+        key_name: str | None = None,
+        key_lifetime: KeyLifetime = KeyLifetime.THIRTY_DAYS,
+    ) -> DeviceCodeClientData:
         for _ in range(self.max_attempts):
-            raw, hashed = DeviceCode.issue()
+            raw, hashed = DeviceCode.issue(key_name=key_name, key_lifetime=key_lifetime)
             async with self._uow_factory() as uow:
                 try:
                     await uow.device_auth.add(hashed)
@@ -129,7 +135,12 @@ class DeviceAuthService:
 
             if consumed is not None:
                 await uow.commit()
-                return PollResult(status=PollStatus.APPROVED, user_id=consumed.user_id)
+                return PollResult(
+                    status=PollStatus.APPROVED,
+                    user_id=consumed.user_id,
+                    key_name=consumed.key_name,
+                    key_lifetime=consumed.key_lifetime,
+                )
 
             code: DeviceCode | None = await uow.device_auth.get_code_by_hash(hash)
             return PollResult(status=self._status_for_unconsumed(code))

@@ -119,5 +119,7 @@ def test_to_dict_keys_match_fields() -> None:
         "user_code",
         "status",
         "expires_at",
+        "key_name",
+        "key_lifetime",
         "user_id",
     }
