@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy import update, delete, select
 
 from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
-from src.domain.user import UserSummary, User
+from src.domain.user import UserSummary, User, UserStatus
 from src.db.orm import users_table, project_user_table
 from src.domain.exceptions import UserAlreadyExistsError
 from src.logger import get_logger
@@ -162,4 +162,18 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
         row: RowMapping | None = result.mappings().one_or_none()
 
+        return User(**row) if row is not None else None
+
+    async def get_active_user_by_email(self, email: str) -> User | None:
+        stmt: Select = select(users_table).where(
+            users_table.c.email == email, users_table.c.status == UserStatus.ACTIVE
+        )
+
+        try:
+            result: Result = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        row: RowMapping | None = result.mappings().one_or_none()
         return User(**row) if row is not None else None

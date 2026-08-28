@@ -1,5 +1,7 @@
 import pytest
+import jwt
 
+from uuid import uuid7
 from datetime import timedelta
 from unittest.mock import AsyncMock
 
@@ -130,9 +132,28 @@ class TestAuthService:
         assert current is not None
         assert current.id == user.id
 
-    async def test_get_current_user_with_inactive_status(
+    async def test_get_current_user_rejects_user_blocked_after_login(
         self, session, event_bus, user
     ):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+
+        auth_service = make_auth_service(session, event_bus)
+
+        token: str | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert token is not None
+
+        user.update_status(status=UserStatus.BLOCKED)
+        await UserRepo(session).update(user)
+
+        result: User | None = await auth_service.get_current_user(token)
+
+        assert result is None
+
+    async def test_login_blocked_user_returns_none(self, session, event_bus, user):
+        user.update_password_hash(_hasher.hash("correct-horse"))
         user.update_status(status=UserStatus.BLOCKED)
         await UserRepo(session).update(user)
 
@@ -142,6 +163,93 @@ class TestAuthService:
             user_email=user.email, password="correct-horse"
         )
 
-        result: User | None = await auth_service.get_current_user(token)
+        assert token is None
+
+    async def test_authenticate_user_unknown_email_returns_none(
+        self, session, event_bus
+    ):
+        auth_service = make_auth_service(session, event_bus)
+
+        result = await auth_service._authenticate_user(
+            "nobody@example.com", "whatever"
+        )
+
+        assert result is None
+
+    async def test_authenticate_user_without_password_hash_returns_none(
+        self, session, event_bus, user
+    ):
+        auth_service = make_auth_service(session, event_bus)
+
+        result = await auth_service._authenticate_user(user.email, "anything")
+
+        assert result is None
+
+    async def test_get_current_user_malformed_token_returns_none(
+        self, session, event_bus
+    ):
+        auth_service = make_auth_service(session, event_bus)
+
+        result = await auth_service.get_current_user("not-a-jwt")
+
+        assert result is None
+
+    async def test_get_current_user_wrong_signature_returns_none(
+        self, session, event_bus, user
+    ):
+        forged = jwt.encode(
+            {"sub": str(user.id)}, key="attacker-secret", algorithm="HS256"
+        )
+        auth_service = make_auth_service(session, event_bus)
+
+        result = await auth_service.get_current_user(forged)
+
+        assert result is None
+
+    async def test_get_current_user_expired_token_returns_none(
+        self, session, event_bus, user
+    ):
+        auth_service = make_auth_service(session, event_bus)
+        expired = auth_service._create_access_token(
+            payload={"sub": str(user.id)}, expires_delta=timedelta(minutes=-1)
+        )
+
+        result = await auth_service.get_current_user(expired)
+
+        assert result is None
+
+    async def test_get_current_user_missing_sub_returns_none(
+        self, session, event_bus
+    ):
+        auth_service = make_auth_service(session, event_bus)
+        token = auth_service._create_access_token(
+            payload={}, expires_delta=timedelta(minutes=5)
+        )
+
+        result = await auth_service.get_current_user(token)
+
+        assert result is None
+
+    async def test_get_current_user_non_uuid_sub_returns_none(
+        self, session, event_bus
+    ):
+        auth_service = make_auth_service(session, event_bus)
+        token = auth_service._create_access_token(
+            payload={"sub": "not-a-uuid"}, expires_delta=timedelta(minutes=5)
+        )
+
+        result = await auth_service.get_current_user(token)
+
+        assert result is None
+
+    async def test_get_current_user_unknown_user_returns_none(
+        self, session, event_bus
+    ):
+        auth_service = make_auth_service(session, event_bus)
+        token = auth_service._create_access_token(
+            payload={"sub": str(uuid7())}, expires_delta=timedelta(minutes=5)
+        )
+
+        result = await auth_service.get_current_user(token)
 
         assert result is None

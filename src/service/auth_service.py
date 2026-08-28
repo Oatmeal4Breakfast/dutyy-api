@@ -51,7 +51,7 @@ class AuthService:
         self.algorithm: str = auth_service_config.algorithm
         self.token_ttl: timedelta = auth_service_config.token_ttl
         self.fake_password: str = auth_service_config.fake_password
-        self.fake_password_hash: str = PasswordSetToken.hash_token(self.fake_password)
+        self.fake_password_hash: str = self._hasher.hash(self.fake_password)
 
     async def set_password(self, raw_token: str, new_password: str) -> None:
         token_hash: str = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -113,7 +113,9 @@ class AuthService:
 
     async def handle_password_reset(self, user_email: str) -> None:
         async with self._uow_factory() as uow:
-            user: User | None = await uow.user.get_user_by_email(email=user_email)
+            user: User | None = await uow.user.get_active_user_by_email(
+                email=user_email
+            )
 
             if user is None:
                 return
@@ -147,7 +149,9 @@ class AuthService:
 
     async def _authenticate_user(self, user_email: str, password: str) -> User | None:
         async with self._uow_factory() as uow:
-            user: User | None = await uow.user.get_user_by_email(email=user_email)
+            user: User | None = await uow.user.get_active_user_by_email(
+                email=user_email
+            )
 
             if user is None:
                 logger.warning(event="user_not_found", user_email=user_email)
