@@ -3,7 +3,7 @@ import pytest
 from typing import TYPE_CHECKING
 
 from src.repository.project_repo import ProjectRepo
-from src.domain.project import ProjectStatus, Project
+from src.domain.project import ProjectStatus, PublishingStatus, Project
 from tests.conftest import make_project
 
 if TYPE_CHECKING:
@@ -137,6 +137,49 @@ class TestProjectRepo:
 
         assert isinstance(results, list)
         assert len(results) == 0
+
+    async def test_add_project_persists_draft_defaults(self, session, user):
+        repo = ProjectRepo(session)
+
+        project = make_project(user.id)
+        await repo.add(project)
+
+        result: Project | None = await repo.get_by_id(project.id)
+
+        assert result is not None
+        assert result.publishing_status == PublishingStatus.DRAFT
+        assert result.published_date is None
+
+    async def test_update_project_publishes(self, session, project):
+        repo = ProjectRepo(session)
+
+        assert project.publishing_status == PublishingStatus.DRAFT
+
+        project.publish()
+
+        await repo.update(project)
+
+        result: Project | None = await repo.get_by_id(project.id)
+
+        assert result is not None
+        assert result.publishing_status == PublishingStatus.PUBLISHED
+        assert result.published_date == project.published_date
+
+    async def test_update_project_unpublish_retains_date(self, session, project):
+        repo = ProjectRepo(session)
+
+        project.publish()
+        await repo.update(project)
+        published_date = project.published_date
+
+        project.unpublish()
+        await repo.update(project)
+
+        result: Project | None = await repo.get_by_id(project.id)
+
+        assert result is not None
+        assert result.publishing_status == PublishingStatus.DRAFT
+        assert result.published_date == published_date
 
     async def test_search_by_name_owner_isolation(self, session, project, user):
         from src.repository.user_repo import UserRepo
