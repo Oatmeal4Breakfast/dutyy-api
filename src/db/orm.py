@@ -13,7 +13,7 @@ from sqlalchemy import (
     Index,
 )
 from src.domain.dutyy import Dutyy, DutyyStatus
-from src.domain.project import Project, ProjectStatus
+from src.domain.project import Project, ProjectStatus, PublishingStatus
 from src.domain.user import User, UserStatus
 from src.domain.api import APIKey, APIKeyStatus
 from src.domain.token import PasswordSetToken
@@ -43,7 +43,9 @@ projects_table = Table(
     Column("name", String, nullable=False, unique=True),
     Column("owner_id", UUID, nullable=False),
     Column("status", Enum(ProjectStatus), nullable=False),
+    Column("publishing_status", Enum(PublishingStatus), nullable=False),
     Column("created_date", DateTime(timezone=True), nullable=False),
+    Column("published_date", DateTime(timezone=True), nullable=True),
     Column("completed_date", DateTime(timezone=True), nullable=True),
     Column("modified_date", DateTime(timezone=True), nullable=True),
     Column("id", UUID, primary_key=True),

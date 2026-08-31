@@ -15,7 +15,13 @@ from src.domain.events import (
     DutyyAdded,
     DutyyRemoved,
     OwnershipTransferred,
+    ProjectPublished,
 )
+
+
+class PublishingStatus(StrEnum):
+    DRAFT = auto()
+    PUBLISHED = auto()
 
 
 class ProjectStatus(StrEnum):
@@ -31,10 +37,12 @@ class Project:
     owner_id: UUID
     modified_date: datetime | None = None
     completed_date: datetime | None = None
+    published_date: datetime | None = None
     events: list = field(default_factory=list, init=False, repr=False)
     status: ProjectStatus = field(default=ProjectStatus.NEW)
     dutyys: list[Dutyy] = field(default_factory=list)
     created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
+    publishing_status: PublishingStatus = field(default=PublishingStatus.DRAFT)
     id: UUID = field(default_factory=uuid7)
 
     def __post_init__(self) -> None:
@@ -91,6 +99,26 @@ class Project:
                 raise DomainValidationError(
                     "Project", [f"{status} is not a valid transition"]
                 )
+
+    def publish(self) -> None:
+        if self.publishing_status == PublishingStatus.PUBLISHED:
+            return
+        self.publishing_status = PublishingStatus.PUBLISHED
+        self.published_date = self._touch()
+        self.events.append(
+            ProjectPublished(
+                project_id=self.id,
+                name=self.name,
+                published_date=self.published_date,
+                owner_id=self.owner_id,
+            )
+        )
+
+    def unpublish(self) -> None:
+        if self.publishing_status == PublishingStatus.DRAFT:
+            return
+        self.publishing_status = PublishingStatus.DRAFT
+        self._touch()
 
     def add_dutyy(self, dutyy: Dutyy) -> None:
         for d in self.dutyys:

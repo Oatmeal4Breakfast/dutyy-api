@@ -1,7 +1,7 @@
 from __future__ import annotations
-from sqlalchemy.ext.asyncio import async_sessionmaker
 from typing import TYPE_CHECKING, Callable
 
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from src.domain.exceptions import DomainValidationError
 from src.domain.user import User, UserUpdateFields, UserSummary

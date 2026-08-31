@@ -31,6 +31,14 @@ class ProjectCompleted(Event):
 
 
 @dataclass(frozen=True)
+class ProjectPublished(Event):
+    project_id: UUID
+    name: str
+    published_date: datetime
+    owner_id: UUID
+
+
+@dataclass(frozen=True)
 class DutyyAdded(Event):
     dutyy_id: UUID
     project_id: UUID
