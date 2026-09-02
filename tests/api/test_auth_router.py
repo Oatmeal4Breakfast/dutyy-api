@@ -1,18 +1,18 @@
-import pytest
-
-from httpx import AsyncClient, ASGITransport
-from fastapi import FastAPI
 from typing import Iterator
 
-from src.main import create_app
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+
 from src.api.deps import (
-    get_device_auth_service,
     get_api_service,
     get_current_user,
+    get_device_auth_service,
 )
 from src.domain.device_auth import DeviceCode, DeviceCodeStatus
+from src.main import create_app
 from src.repository.device_auth_repo import DeviceAuthRepo
-from tests.conftest import make_device_auth_service, make_api_service
+from tests.conftest import make_api_service, make_device_auth_service
 
 
 @pytest.fixture

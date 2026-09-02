@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from datetime import datetime
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from datetime import datetime
 from enum import StrEnum, auto
+from typing import TYPE_CHECKING, Callable
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.domain.exceptions import DeviceCodeCollisionError
-from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
 from src.config import DeviceAuthConfig
-from src.logger import get_logger
 from src.db.uow import AbstractUnitOfWork
+from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
+from src.domain.exceptions import DeviceCodeCollisionError
+from src.logger import get_logger
 
 if TYPE_CHECKING:
     from uuid import UUID
+
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)

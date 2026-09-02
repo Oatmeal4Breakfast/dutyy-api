@@ -1,23 +1,28 @@
 from __future__ import annotations
-from src.service.api_service import APIService
-from src.domain.user import User
-from src.domain.device_auth import KeyLifetime
-from src.api.deps import get_current_user
-from typing import Annotated, TYPE_CHECKING
-from datetime import datetime, UTC
 
-from fastapi import Depends, APIRouter, HTTPException, status
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr
 
-from src.api.deps import get_auth_service, get_device_auth_service, get_api_service
+from src.api.deps import (
+    get_api_service,
+    get_auth_service,
+    get_current_user,
+    get_device_auth_service,
+)
+from src.domain.device_auth import KeyLifetime
+from src.domain.user import User
+from src.service.api_service import APIService
 from src.service.auth_service import AuthService
 from src.service.device_auth_service import (
-    DeviceAuthService,
-    PollStatus,
-    PollResult,
-    DeviceCodeClientData,
     DeviceAuthError,
+    DeviceAuthService,
+    DeviceCodeClientData,
+    PollResult,
+    PollStatus,
 )
 
 if TYPE_CHECKING:

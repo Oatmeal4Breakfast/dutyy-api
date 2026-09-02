@@ -1,10 +1,10 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from datetime import datetime, UTC, timedelta
 
-from src.domain.user import User
-from src.domain.user import UserStatus
+import pytest
+
 from src.domain.exceptions import DomainValidationError
+from src.domain.user import User, UserStatus
 
 
 def make_user(**kwargs) -> User:

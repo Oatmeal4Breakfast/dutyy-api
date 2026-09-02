@@ -1,19 +1,21 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Sequence
 
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy import select, update, delete, insert
 
-from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
-from src.db.orm import projects_table, project_user_table
-from src.domain.project import Project
+from src.db.orm import project_user_table, projects_table
 from src.domain.exceptions import ProjectAlreadyExistsError
+from src.domain.project import Project
 from src.logger import get_logger
+from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from sqlalchemy import Select, RowMapping, Result, Delete
     from uuid import UUID
+
+    from sqlalchemy import Delete, Result, RowMapping, Select
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 logger = get_logger(__name__)

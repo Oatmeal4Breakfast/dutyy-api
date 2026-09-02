@@ -1,21 +1,18 @@
-import pytest
-import jwt
-
-from uuid import uuid7
 from datetime import timedelta
 from unittest.mock import AsyncMock
+from uuid import uuid7
 
+import jwt
+import pytest
 from pwdlib import PasswordHash
 
-from tests.conftest import make_auth_service
-
-from src.domain.events import UserCreated, PasswordTokenCreated
+from src.domain.events import PasswordTokenCreated, UserCreated
+from src.domain.exceptions import DomainValidationError
 from src.domain.token import PasswordSetToken
 from src.domain.user import User, UserStatus
-from src.domain.exceptions import DomainValidationError
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
-
+from tests.conftest import make_auth_service
 
 _hasher = PasswordHash.recommended()
 

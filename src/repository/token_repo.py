@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repo import Operation, RepoError
-from src.domain.token import PasswordSetToken
 from src.db.orm import password_set_tokens_table
+from src.domain.token import PasswordSetToken
 from src.logger import get_logger
+from src.repository.abstract_repo import Operation, RepoError
 
 if TYPE_CHECKING:
     from uuid import UUID
-    from sqlalchemy.ext.asyncio import AsyncSession
+
     from sqlalchemy import Result, RowMapping, Select, Update
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 

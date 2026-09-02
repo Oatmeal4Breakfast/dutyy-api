@@ -1,12 +1,12 @@
-import pytest
 from datetime import timedelta
 
-from httpx import AsyncClient, ASGITransport
+import pytest
 from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 
-from src.main import create_app
 from src.api.deps import get_api_service, get_current_user
 from src.domain.api import APIKeyStatus
+from src.main import create_app
 from tests.conftest import make_api_service
 
 

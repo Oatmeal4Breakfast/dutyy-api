@@ -1,10 +1,10 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
-from datetime import datetime, UTC, timedelta
 
-from src.domain.dutyy import Dutyy
-from src.domain.dutyy import DutyyStatus
+import pytest
+
+from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.events import DutyyCompleted
 from src.domain.exceptions import DomainValidationError
 

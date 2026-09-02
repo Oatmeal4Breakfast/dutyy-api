@@ -1,30 +1,31 @@
 from __future__ import annotations
-import jwt
+
 import asyncio
 import hashlib
-
-from uuid import UUID
-from datetime import timedelta, datetime, UTC
-from typing import TYPE_CHECKING, Any
 from collections.abc import Callable
-from pwdlib import PasswordHash
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
+from uuid import UUID
+
+import jwt
 from jwt.exceptions import InvalidTokenError
+from pwdlib import PasswordHash
 
-from src.domain.events import (
-    UserCreated,
-    PasswordTokenCreated,
-    PasswordResetRequested,
-)
-from src.domain.user import User, UserStatus
-from src.domain.token import PasswordSetToken
-from src.db.uow import AbstractUnitOfWork
-from src.logger import get_logger
 from src.config import AuthServiceConfig
+from src.db.uow import AbstractUnitOfWork
+from src.domain.events import (
+    PasswordResetRequested,
+    PasswordTokenCreated,
+    UserCreated,
+)
 from src.domain.exceptions import DomainValidationError
-
+from src.domain.token import PasswordSetToken
+from src.domain.user import User, UserStatus
+from src.logger import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)

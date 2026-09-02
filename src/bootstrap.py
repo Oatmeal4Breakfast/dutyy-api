@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from src.domain.events import (
-    UserCreated,
-    PasswordTokenCreated,
     PasswordResetRequested,
+    PasswordTokenCreated,
+    UserCreated,
 )
 
 if TYPE_CHECKING:

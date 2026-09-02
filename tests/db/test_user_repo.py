@@ -1,11 +1,11 @@
-import pytest
 from uuid import UUID
 
+import pytest
 
-from src.repository.user_repo import UserRepo
-from src.domain.user import User, UserSummary
-from tests.conftest import make_user
 from src.domain.exceptions import UserAlreadyExistsError
+from src.domain.user import User, UserSummary
+from src.repository.user_repo import UserRepo
+from tests.conftest import make_user
 
 
 @pytest.mark.integration
@@ -113,6 +113,7 @@ class TestUserRepo:
 
     async def test_get_users_by_project_id_multiple_users(self, session, project, user):
         from sqlalchemy import insert
+
         from src.db.orm import project_user_table
         from tests.conftest import make_user
 

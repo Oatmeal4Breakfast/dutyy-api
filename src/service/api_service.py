@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from datetime import timedelta, datetime, UTC
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Callable
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from src.db.uow import AbstractUnitOfWork
+from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from src.logger import get_logger
 
 if TYPE_CHECKING:
     from uuid import UUID
+
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)

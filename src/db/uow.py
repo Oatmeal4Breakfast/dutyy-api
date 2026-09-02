@@ -1,20 +1,22 @@
 from __future__ import annotations
+
 import asyncio
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from src.bus.bus import EventBus
-from src.repository.dutyy_repo import DutyRepo
-from src.repository.project_repo import ProjectRepo
-from src.repository.user_repo import UserRepo
-from src.repository.api_repo import APIRepo
-from src.repository.health_repo import HealthRepo
-from src.repository.token_repo import PasswordSetTokenRepo
-from src.repository.device_auth_repo import DeviceAuthRepo
 from src.logger import get_logger
+from src.repository.api_repo import APIRepo
+from src.repository.device_auth_repo import DeviceAuthRepo
+from src.repository.dutyy_repo import DutyRepo
+from src.repository.health_repo import HealthRepo
+from src.repository.project_repo import ProjectRepo
+from src.repository.token_repo import PasswordSetTokenRepo
+from src.repository.user_repo import UserRepo
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
     from src.domain.events import Event
 
 logger = get_logger(__name__)

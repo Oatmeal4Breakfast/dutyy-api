@@ -1,9 +1,11 @@
 from __future__ import annotations
-import resend
+
 from typing import cast
 
-from src.domain.events import PasswordTokenCreated, PasswordResetRequested
+import resend
+
 from src.config import EmailServiceConfig
+from src.domain.events import PasswordResetRequested, PasswordTokenCreated
 from src.logger import get_logger
 
 logger = get_logger(__name__)

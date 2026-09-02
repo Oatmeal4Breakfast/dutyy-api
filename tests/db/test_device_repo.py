@@ -1,9 +1,10 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from datetime import datetime, timedelta, UTC
 
-from src.repository.device_auth_repo import DeviceAuthRepo
+import pytest
+
 from src.domain.device_auth import DeviceCode, DeviceCodeStatus
+from src.repository.device_auth_repo import DeviceAuthRepo
 
 
 def make_device_code(**kwargs: Any) -> DeviceCode:

@@ -2,18 +2,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import select, update, delete, func, or_
-from sqlalchemy.exc import OperationalError, IntegrityError
-from sqlalchemy import CursorResult
+from sqlalchemy import CursorResult, delete, func, or_, select, update
+from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repo import RepoError, Operation
-from src.domain.device_auth import DeviceCodeStatus, DeviceCode, DeviceCodeDict
 from src.db.orm import device_auth_code_table
+from src.domain.device_auth import DeviceCode, DeviceCodeDict, DeviceCodeStatus
 from src.logger import get_logger
+from src.repository.abstract_repo import Operation, RepoError
 
 if TYPE_CHECKING:
+    from sqlalchemy import Result, RowMapping, Select, Update
     from sqlalchemy.ext.asyncio import AsyncSession
-    from sqlalchemy import Select, Result, RowMapping, Update
 
 logger = get_logger(__name__)
 

@@ -1,38 +1,32 @@
-import pytest
 import asyncio
-from uuid import UUID
 from datetime import timedelta
-from typing import Any
 from functools import partial
+from typing import Any
+from uuid import UUID
 
+import pytest
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from src.bus.bus import EventBus
+from src.config import AuthServiceConfig, DeviceAuthConfig
 from src.db.orm import metadata
 from src.db.uow import AbstractUnitOfWork
-
-from src.config import AuthServiceConfig
-
-from src.repository.user_repo import UserRepo
-from src.repository.dutyy_repo import DutyRepo
-from src.repository.project_repo import ProjectRepo
-from src.repository.health_repo import HealthRepo
-from src.repository.api_repo import APIRepo
-from src.repository.token_repo import PasswordSetTokenRepo
-from src.repository.device_auth_repo import DeviceAuthRepo
-
-from src.domain.user import User
-from src.domain.project import Project
-from src.domain.dutyy import Dutyy
 from src.domain.api import APIKey
-from src.service.user_service import UserService
-from src.service.auth_service import AuthService
+from src.domain.dutyy import Dutyy
+from src.domain.project import Project
+from src.domain.user import User
+from src.repository.api_repo import APIRepo
+from src.repository.device_auth_repo import DeviceAuthRepo
+from src.repository.dutyy_repo import DutyRepo
+from src.repository.health_repo import HealthRepo
+from src.repository.project_repo import ProjectRepo
+from src.repository.token_repo import PasswordSetTokenRepo
+from src.repository.user_repo import UserRepo
 from src.service.api_service import APIService
+from src.service.auth_service import AuthService
 from src.service.device_auth_service import DeviceAuthService
-
-from src.config import DeviceAuthConfig
-
+from src.service.user_service import UserService
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
 

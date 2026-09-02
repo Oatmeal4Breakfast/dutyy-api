@@ -1,15 +1,13 @@
-import pytest
-
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from uuid import uuid7
 
+import pytest
 from structlog.testing import capture_logs
 
-from tests.conftest import make_api_service
-
-from src.service.api_service import APIService
 from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from src.repository.api_repo import APIRepo
+from src.service.api_service import APIService
+from tests.conftest import make_api_service
 
 
 @pytest.mark.integration

@@ -1,16 +1,14 @@
-import pytest
-
-from typing import Any
 from datetime import timedelta
+from typing import Any
 
-from fastapi import Request, HTTPException
-
-from tests.conftest import make_api_service, make_user_service
+import pytest
+from fastapi import HTTPException, Request
 
 from src.api.deps import get_api_key, get_api_key_user
 from src.domain.api import APIKey
-from src.service.user_service import UserService
 from src.service.api_service import APIService
+from src.service.user_service import UserService
+from tests.conftest import make_api_service, make_user_service
 
 
 def make_request(headers: dict[str, str]) -> Request:

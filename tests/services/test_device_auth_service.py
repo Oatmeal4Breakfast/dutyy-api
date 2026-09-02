@@ -1,23 +1,21 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
-
-from datetime import datetime, timedelta, UTC
-
-from structlog.testing import capture_logs
 from sqlalchemy.exc import IntegrityError
-
-from tests.conftest import make_device_auth_service
+from structlog.testing import capture_logs
 
 from src.config import DeviceAuthConfig
+from src.domain.device_auth import DeviceCode, DeviceCodeStatus
 from src.domain.exceptions import DeviceCodeCollisionError
+from src.repository.device_auth_repo import DeviceAuthRepo
 from src.service.device_auth_service import (
+    DeviceAuthError,
     DeviceAuthService,
     DeviceCodeClientData,
-    DeviceAuthError,
     PollResult,
     PollStatus,
 )
-from src.domain.device_auth import DeviceCode, DeviceCodeStatus
-from src.repository.device_auth_repo import DeviceAuthRepo
+from tests.conftest import make_device_auth_service
 
 
 class _CollisionUow:

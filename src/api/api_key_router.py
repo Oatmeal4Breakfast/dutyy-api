@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from typing import Annotated
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 
+from src.api.deps import get_api_service, get_current_user
 from src.domain.api import APIKeyStatus, APIKeySummary
 from src.domain.user import User
 from src.service.api_service import APIService
-from src.api.deps import get_current_user, get_api_service
 
 
 class APIKeyExpiry(StrEnum):

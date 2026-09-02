@@ -1,12 +1,12 @@
 import hashlib
-import pytest
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid7
-from datetime import datetime, UTC, timedelta
 
-from src.domain.token import PasswordSetToken
+import pytest
+
 from src.domain.exceptions import DomainValidationError
-
+from src.domain.token import PasswordSetToken
 
 _DEFAULT_USER_ID = uuid7()
 _TTL = timedelta(minutes=15)

@@ -1,8 +1,9 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
-from datetime import timedelta, datetime, UTC
-from src.repository.token_repo import PasswordSetTokenRepo
 from src.domain.token import PasswordSetToken
+from src.repository.token_repo import PasswordSetTokenRepo
 
 _TTL = timedelta(minutes=15)
 

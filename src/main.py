@@ -1,37 +1,39 @@
 from __future__ import annotations
-from src.service.api_service import APIService
-from typing import TYPE_CHECKING
+
 from functools import partial
+from typing import TYPE_CHECKING
 
-from fastapi import FastAPI, Depends, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import OperationalError, IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
+from src.api import api_key_router, auth_router, user_router
 from src.api.deps import get_uow
-from src.api import user_router, auth_router, api_key_router
+from src.bootstrap import register_event_handlers
+from src.bus.bus import EventBus
+from src.config import (
+    get_auth_service_config,
+    get_config,
+    get_device_auth_config,
+    get_email_service_config,
+)
+from src.db.db import create_engine_and_session
 from src.db.uow import UnitOfWork
 from src.domain.exceptions import (
     DomainValidationError,
-    UserAlreadyExistsError,
     ProjectAlreadyExistsError,
-)
-from src.bootstrap import register_event_handlers
-from src.bus.bus import EventBus
-from src.service.user_service import UserNotFoundError, UserService
-from src.service.device_auth_service import DeviceAuthService
-from src.service.auth_service import AuthService
-from src.service.email_service import EmailService
-from src.db.db import create_engine_and_session
-from src.config import (
-    get_config,
-    get_auth_service_config,
-    get_email_service_config,
-    get_device_auth_config,
+    UserAlreadyExistsError,
 )
 from src.logger import config_logger
+from src.service.api_service import APIService
+from src.service.auth_service import AuthService
+from src.service.device_auth_service import DeviceAuthService
+from src.service.email_service import EmailService
+from src.service.user_service import UserNotFoundError, UserService
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
     from src.config import AuthServiceConfig, Config, EmailServiceConfig
 
 

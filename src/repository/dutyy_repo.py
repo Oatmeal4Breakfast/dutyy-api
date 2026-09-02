@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 from src.db.orm import dutyy_table, project_user_table
 from src.domain.dutyy import Dutyy
 from src.logger import get_logger
+from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from uuid import UUID
-    from sqlalchemy import Select, RowMapping, Result
+
+    from sqlalchemy import Result, RowMapping, Select
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 

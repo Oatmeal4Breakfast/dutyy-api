@@ -1,21 +1,21 @@
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, UTC
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum, auto
 from typing import Any
 from uuid import UUID, uuid7
 
 from src.domain.dutyy import Dutyy
+from src.domain.events import (
+    DutyyAdded,
+    DutyyRemoved,
+    OwnershipTransferred,
+    ProjectCompleted,
+    ProjectPublished,
+)
 from src.domain.exceptions import (
     DomainValidationError,
     DutyyAssignedError,
     DutyyNotAssignedError,
-)
-from src.domain.events import (
-    ProjectCompleted,
-    DutyyAdded,
-    DutyyRemoved,
-    OwnershipTransferred,
-    ProjectPublished,
 )
 
 

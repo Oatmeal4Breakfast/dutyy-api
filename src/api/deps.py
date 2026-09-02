@@ -1,18 +1,17 @@
 from typing import Annotated
-from fastapi import Request, Depends, HTTPException, status
+
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio.session import AsyncSession, async_sessionmaker
 
-from src.domain.user import UserSummary, User
-from src.domain.api import APIKey
-from src.db.uow import UnitOfWork
-from src.service.auth_service import AuthService
-from src.service.user_service import UserService
-from src.service.device_auth_service import DeviceAuthService
 from src.bus.bus import EventBus
+from src.db.uow import UnitOfWork
+from src.domain.api import APIKey
+from src.domain.user import User, UserSummary
 from src.service.api_service import APIService
-
-from sqlalchemy.ext.asyncio.session import async_sessionmaker, AsyncSession
-
+from src.service.auth_service import AuthService
+from src.service.device_auth_service import DeviceAuthService
+from src.service.user_service import UserService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/dutyy/api/v1/auth/login")
 

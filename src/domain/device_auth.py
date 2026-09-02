@@ -1,10 +1,10 @@
 import hashlib
 import secrets
-from uuid import UUID
-from typing import TypedDict, cast
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum, auto
-from datetime import datetime, timedelta, UTC
+from typing import TypedDict, cast
+from uuid import UUID
 
 
 class DeviceCodeStatus(StrEnum):

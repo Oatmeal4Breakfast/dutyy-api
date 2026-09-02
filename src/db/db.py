@@ -1,13 +1,16 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
 
 if TYPE_CHECKING:
-    from src.config import Config
     from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+
+    from src.config import Config
 
 
 def create_engine_and_session(

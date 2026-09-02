@@ -1,17 +1,20 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Sequence
+
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.repository.abstract_repo import Operation, RepoError
-from src.domain.api import APIKey, APIKeySummary
 from src.db.orm import api_key_table
+from src.domain.api import APIKey, APIKeySummary
 from src.logger import get_logger
+from src.repository.abstract_repo import Operation, RepoError
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from sqlalchemy import Select, Update, Result, RowMapping
     from uuid import UUID
+
+    from sqlalchemy import Result, RowMapping, Select, Update
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
 

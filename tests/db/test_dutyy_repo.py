@@ -1,10 +1,9 @@
 from __future__ import annotations
+
 import pytest
 
-
+from src.domain.dutyy import Dutyy, DutyyStatus
 from src.repository.dutyy_repo import DutyRepo
-from src.domain.dutyy import Dutyy
-from src.domain.dutyy import DutyyStatus
 from tests.conftest import make_dutyy, make_project
 
 

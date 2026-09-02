@@ -1,14 +1,17 @@
 from __future__ import annotations
+
 import logging
-import structlog
 from typing import TYPE_CHECKING
+
+import structlog
 
 from src.config import ENV
 
 if TYPE_CHECKING:
-    from src.config import Config
-    from structlog.processors import JSONRenderer
     from structlog.dev import ConsoleRenderer
+    from structlog.processors import JSONRenderer
+
+    from src.config import Config
 
 
 def config_logger(config: Config) -> None:

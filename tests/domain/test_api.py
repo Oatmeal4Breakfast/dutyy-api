@@ -1,11 +1,11 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid7
-from datetime import datetime, UTC, timedelta
+
+import pytest
 
 from src.domain.api import APIKey
 from src.domain.exceptions import DomainValidationError
-
 
 _DEFAULT_USER_ID = uuid7()
 

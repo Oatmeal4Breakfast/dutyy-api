@@ -51,3 +51,21 @@ show_missing = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+# Do not exclude alembic - ensure migrations are linted/formatted too
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+# Keep indent as spaces to match default nvim behavior (tab -> 4 spaces for python)
+quote-style = "double"
+indent-style = "space"

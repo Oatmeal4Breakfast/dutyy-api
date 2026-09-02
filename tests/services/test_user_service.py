@@ -1,6 +1,6 @@
-import pytest
-
 from unittest.mock import AsyncMock
+
+import pytest
 
 from src.domain.events import UserCreated, UserStatusChanged
 from src.domain.user import UserStatus, UserUpdateFields

@@ -1,8 +1,8 @@
 from __future__ import annotations
-import functools
 
 import asyncio
-from typing import Protocol, Callable, TYPE_CHECKING, Awaitable
+import functools
+from typing import TYPE_CHECKING, Awaitable, Callable, Protocol
 
 from src.logger import get_logger
 

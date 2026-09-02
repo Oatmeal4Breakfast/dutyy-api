@@ -1,17 +1,20 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Callable
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from src.domain.exceptions import DomainValidationError
-from src.domain.user import User, UserUpdateFields, UserSummary
 from src.db.uow import AbstractUnitOfWork
+from src.domain.exceptions import DomainValidationError
+from src.domain.user import User, UserSummary, UserUpdateFields
 from src.logger import get_logger
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
     from src.bus.bus import EventBus
-    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 logger = get_logger(__name__)
 

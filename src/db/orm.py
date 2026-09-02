@@ -1,24 +1,24 @@
+from sqlalchemy import (
+    UUID,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    MetaData,
+    String,
+    Table,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import registry, relationship
-from sqlalchemy import (
-    String,
-    UUID,
-    ForeignKey,
-    DateTime,
-    Text,
-    Enum,
-    Table,
-    Column,
-    MetaData,
-    Index,
-)
+
+from src.domain.api import APIKey, APIKeyStatus
+from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
 from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.project import Project, ProjectStatus, PublishingStatus
-from src.domain.user import User, UserStatus
-from src.domain.api import APIKey, APIKeyStatus
 from src.domain.token import PasswordSetToken
-from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
-
+from src.domain.user import User, UserStatus
 
 mapper_registry = registry()
 metadata = MetaData()

@@ -1,13 +1,13 @@
-from datetime import datetime, UTC
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum, auto
 from typing import Any
 from uuid import UUID, uuid7
 
-from email_validator import validate_email, EmailNotValidError
+from email_validator import EmailNotValidError, validate_email
 
+from src.domain.events import UserCreated, UserPasswordReset, UserStatusChanged
 from src.domain.exceptions import DomainValidationError
-from src.domain.events import UserCreated, UserStatusChanged, UserPasswordReset
 
 
 class UserStatus(StrEnum):

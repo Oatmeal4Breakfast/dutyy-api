@@ -1,25 +1,22 @@
-import pytest
-
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid7
-from datetime import timedelta, datetime, UTC
 
+import pytest
 
-from src.domain.project import Project
 from src.domain.dutyy import Dutyy
-from src.domain.project import ProjectStatus, PublishingStatus
 from src.domain.events import (
-    ProjectCompleted,
-    ProjectPublished,
     DutyyAdded,
     DutyyRemoved,
+    ProjectCompleted,
+    ProjectPublished,
 )
 from src.domain.exceptions import (
     DomainValidationError,
     DutyyAssignedError,
     DutyyNotAssignedError,
 )
-
+from src.domain.project import Project, ProjectStatus, PublishingStatus
 
 owner_id = uuid7()
 

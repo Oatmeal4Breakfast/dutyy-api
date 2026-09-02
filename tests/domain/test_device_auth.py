@@ -1,9 +1,9 @@
 import hashlib
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid7
-from datetime import datetime, timedelta, UTC
 
-from src.domain.device_auth import DeviceCode, DeviceCodeStatus, CHAR_SET
+from src.domain.device_auth import CHAR_SET, DeviceCode, DeviceCodeStatus
 
 
 def make_device_code(**kwargs) -> DeviceCode:

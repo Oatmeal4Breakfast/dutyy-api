@@ -1,11 +1,11 @@
-from datetime import datetime, UTC
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import StrEnum, auto
-from uuid import UUID, uuid7
 from typing import Any
+from uuid import UUID, uuid7
 
-from src.domain.exceptions import DomainValidationError
 from src.domain.events import DutyyCompleted
+from src.domain.exceptions import DomainValidationError
 
 
 class DutyyStatus(StrEnum):

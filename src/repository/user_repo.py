@@ -2,19 +2,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy import update, delete, select
 
-from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
-from src.domain.user import UserSummary, User, UserStatus
-from src.db.orm import users_table, project_user_table
+from src.db.orm import project_user_table, users_table
 from src.domain.exceptions import UserAlreadyExistsError
+from src.domain.user import User, UserStatus, UserSummary
 from src.logger import get_logger
+from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from uuid import UUID
-    from sqlalchemy import Select, Result, RowMapping, Delete
+
+    from sqlalchemy import Delete, Result, RowMapping, Select
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 logger = get_logger(__name__)
