@@ -163,7 +163,7 @@ def test_delete_dutyy_sucess() -> None:
 
     assert len(project.dutyys) == 1
 
-    project.delete_dutyy(dutyy)
+    project.delete_dutyy(dutyy.id)
 
     assert len(project.dutyys) == 0
     assert any(isinstance(e, DutyyRemoved) for e in project.events)
@@ -173,7 +173,7 @@ def test_delete_dutyy_fails() -> None:
     project = make_project()
     with pytest.raises(DutyyNotAssignedError):
         dutyy = make_dutyy(project_id=project.id)
-        project.delete_dutyy(dutyy)
+        project.delete_dutyy(dutyy.id)
 
 
 def test_transfer_ownership_success() -> None:
@@ -320,7 +320,7 @@ def test_delete_dutyy_specific_when_multiple_exist() -> None:
 
     assert len(project.dutyys) == 2
 
-    project.delete_dutyy(dutyy_1)
+    project.delete_dutyy(dutyy_1.id)
 
     assert len(project.dutyys) == 1
     assert project.dutyys[0].id == dutyy_2.id

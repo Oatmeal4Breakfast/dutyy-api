@@ -131,20 +131,20 @@ class Project:
             DutyyAdded(dutyy_id=dutyy.id, project_id=self.id, modified_date=mod_date)
         )
 
-    def delete_dutyy(self, dutyy: Dutyy) -> None:
+    def delete_dutyy(self, dutyy_id: UUID) -> None:
         for idx, d in enumerate(self.dutyys):
-            if d.id == dutyy.id:
+            if d.id == dutyy_id:
                 del self.dutyys[idx]
                 mod_date = self._touch()
                 self.events.append(
                     DutyyRemoved(
-                        dutyy_id=dutyy.id,
+                        dutyy_id=dutyy_id,
                         project_id=self.id,
                         modified_date=mod_date,
                     )
                 )
                 return
-        raise DutyyNotAssignedError(dutyy.id)
+        raise DutyyNotAssignedError(dutyy_id)
 
     def transfer_ownership(self, owner_id: UUID) -> None:
         if self.owner_id == owner_id:
