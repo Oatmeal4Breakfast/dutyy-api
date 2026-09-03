@@ -155,3 +155,8 @@ mapper_registry.map_imperatively(DeviceCode, device_auth_code_table)
 @event.listens_for(Project, "load")
 def initialize_project_events(project: Project, _) -> None:
     project.events = []
+
+
+@event.listens_for(Dutyy, "load")
+def initialize_dutyy_events(dutyy: Dutyy, _) -> None:
+    dutyy.events = []
