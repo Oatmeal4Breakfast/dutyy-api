@@ -29,6 +29,9 @@ class Config(BaseSettings):
     pool_size: int = Field(default=5)
 
     env: ENV = Field(default=ENV.DEVELOPMENT)
+    host: str = Field(default="0.0.0.0")
+    port: int = Field(default=8000, le=65535, ge=1)
+    reload: bool = Field(default=False)
 
     @property
     def uri(self) -> str:
