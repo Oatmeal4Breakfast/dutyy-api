@@ -26,6 +26,7 @@ from src.repository.user_repo import UserRepo
 from src.service.api_service import APIService
 from src.service.auth_service import AuthService
 from src.service.device_auth_service import DeviceAuthService
+from src.service.project_service import PublishingService
 from src.service.user_service import UserService
 
 TEST_DB_URI = "postgresql+psycopg://test:test@localhost:5433/test_db"
@@ -108,6 +109,10 @@ def make_device_auth_service(session, event_bus) -> DeviceAuthService:
         config=config,
         uow_factory=partial(FakeUnitOfWork, session, event_bus),
     )
+
+
+def make_project_service(session, event_bus) -> PublishingService:
+    return PublishingService(uow_factory=partial(FakeUnitOfWork, session, event_bus))
 
 
 @pytest.fixture(scope="session")

@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 from src.db.uow import AbstractUnitOfWork
 from src.domain.dutyy import Dutyy
-from src.domain.project import Project
 from src.domain.exceptions import DomainValidationError
+from src.domain.project import Project
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -18,10 +18,12 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
 class ProjectNotFound(Exception):
-    def __init__(self, id:UUID) -> None:
+    def __init__(self, id: UUID) -> None:
         self.id = id
         super().__init__(f"Project with id {self.id} not found")
+
 
 class PublishingService:
     def __init__(
@@ -64,10 +66,7 @@ class PublishingService:
                     project_id=str(project.id),
                 )
                 raise DomainValidationError(
-                    entity="Project",
-                    errors=[
-                        "project_has_no_dutyys"
-                    ]
+                    entity="Project", errors=["project_has_no_dutyys"]
                 )
 
             project.publish()
@@ -76,10 +75,11 @@ class PublishingService:
             await uow.commit()
             return
 
-
-    async def add_dutyy(self, dutyy_title: str, project_id: UUID, details: str | None = None) -> Dutyy:
+    async def add_dutyy(
+        self, dutyy_title: str, project_id: UUID, details: str | None = None
+    ) -> Dutyy:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id(project_id=project_id)project_id
+            project: Project | None = await uow.project.get_by_id(project_id=project_id)
 
             if project is None:
                 logger.warning(
@@ -88,14 +88,25 @@ class PublishingService:
                 )
                 raise ProjectNotFound(project_id)
 
-            dutyy = Dutyy(
-                title=dutyy_title,
-                project_id=project_id,
-                details=details
-            )
+            dutyy = Dutyy(title=dutyy_title, project_id=project_id, details=details)
 
             project.add_dutyy(dutyy)
 
             await uow.project.update(project)
+            await uow.commit()
 
             return dutyy
+
+    async def remove_dutyy(self, dutyy_id: UUID, project_id: UUID) -> None:
+        async with self._uow_factory() as uow:
+            project: Project | None = await uow.project.get_by_id_with_dutyys(
+                project_id=project_id
+            )
+
+            if project is None:
+                logger.warning(event="project_not_found", project_id=str(project_id))
+                raise ProjectNotFound(project_id)
+
+            project.delete_dutyy(dutyy_id)
+            await uow.project.update(project)
+            await uow.commit()
