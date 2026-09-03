@@ -7,6 +7,11 @@ default:
 sync:
   uv sync
 
+# First-time (or fresh-clone) project setup: deps + git hooks
+setup:
+  uv sync
+  uvx pre-commit install
+
 test *args:
     docker compose -f docker-compose.test.yml down --remove-orphans
     docker compose -f docker-compose.test.yml up -d --wait
@@ -29,3 +34,6 @@ migrate message:
 
 pr:
     gh pr create --fill
+
+lint:
+  uv run ruff check --fix .

@@ -167,9 +167,7 @@ class TestAuthService:
     ):
         auth_service = make_auth_service(session, event_bus)
 
-        result = await auth_service._authenticate_user(
-            "nobody@example.com", "whatever"
-        )
+        result = await auth_service._authenticate_user("nobody@example.com", "whatever")
 
         assert result is None
 
@@ -215,9 +213,7 @@ class TestAuthService:
 
         assert result is None
 
-    async def test_get_current_user_missing_sub_returns_none(
-        self, session, event_bus
-    ):
+    async def test_get_current_user_missing_sub_returns_none(self, session, event_bus):
         auth_service = make_auth_service(session, event_bus)
         token = auth_service._create_access_token(
             payload={}, expires_delta=timedelta(minutes=5)
@@ -227,9 +223,7 @@ class TestAuthService:
 
         assert result is None
 
-    async def test_get_current_user_non_uuid_sub_returns_none(
-        self, session, event_bus
-    ):
+    async def test_get_current_user_non_uuid_sub_returns_none(self, session, event_bus):
         auth_service = make_auth_service(session, event_bus)
         token = auth_service._create_access_token(
             payload={"sub": "not-a-uuid"}, expires_delta=timedelta(minutes=5)
@@ -239,9 +233,7 @@ class TestAuthService:
 
         assert result is None
 
-    async def test_get_current_user_unknown_user_returns_none(
-        self, session, event_bus
-    ):
+    async def test_get_current_user_unknown_user_returns_none(self, session, event_bus):
         auth_service = make_auth_service(session, event_bus)
         token = auth_service._create_access_token(
             payload={"sub": str(uuid7())}, expires_delta=timedelta(minutes=5)
