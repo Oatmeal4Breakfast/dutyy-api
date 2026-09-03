@@ -80,7 +80,7 @@ class TestDeviceAuthServiceStart:
 class TestDeviceAuthServiceStartRetry:
     async def test_retries_on_collision_then_succeeds(self):
         config = DeviceAuthConfig(
-            verification_base_uri="https://dutyy.app/device", max_attempts=3
+            device_auth_base_uri="https://dutyy.app/device", device_auth_max_attempts=3
         )
         uow = _CollisionUow(add_effects=[_integrity_error(), None])
         service = DeviceAuthService(config=config, uow_factory=uow)
@@ -93,7 +93,7 @@ class TestDeviceAuthServiceStartRetry:
 
     async def test_raises_after_exhausting_attempts(self):
         config = DeviceAuthConfig(
-            verification_base_uri="https://dutyy.app/device", max_attempts=3
+            device_auth_base_uri="https://dutyy.app/device", device_auth_max_attempts=3
         )
         uow = _CollisionUow(add_effects=[_integrity_error()] * 3)
         service = DeviceAuthService(config=config, uow_factory=uow)
