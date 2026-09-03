@@ -103,7 +103,7 @@ def make_api_service(session, event_bus) -> APIService:
 
 
 def make_device_auth_service(session, event_bus) -> DeviceAuthService:
-    config = DeviceAuthConfig(verification_base_uri="https://dutyy.app/device")
+    config = DeviceAuthConfig(device_auth_base_uri="https://dutyy.app/device")
     return DeviceAuthService(
         config=config,
         uow_factory=partial(FakeUnitOfWork, session, event_bus),

@@ -63,12 +63,11 @@ class DeviceAuthConfig(BaseSettings):
         case_sensitive=False,
         env_file_encoding="utf-8",
         extra="ignore",
-        env_prefix="DEVICE_AUTH_",
     )
 
-    max_attempts: int = Field(default=3)
-    verification_base_uri: AnyHttpUrl = Field(default=...)
-    interval: int = Field(default=5)
+    device_auth_max_attempts: int = Field(default=3)
+    device_auth_base_uri: AnyHttpUrl = Field(default=...)
+    device_auth_interval: int = Field(default=5)
 
 
 @lru_cache

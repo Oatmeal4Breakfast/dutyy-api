@@ -62,9 +62,9 @@ class DeviceAuthService:
         ],
     ) -> None:
         self._uow_factory: Callable = uow_factory
-        self.max_attempts: int = config.max_attempts
-        self.interval: int = config.interval
-        self.verification_uri: str = str(config.verification_base_uri)
+        self.max_attempts: int = config.device_auth_max_attempts
+        self.interval: int = config.device_auth_interval
+        self.verification_uri: str = str(config.device_auth_base_uri)
 
     async def approve(
         self, user_code: str, user_id: UUID
