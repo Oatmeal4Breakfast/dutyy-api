@@ -193,7 +193,9 @@ class TestAuthService:
         self, session, event_bus, user
     ):
         forged = jwt.encode(
-            {"sub": str(user.id)}, key="attacker-secret", algorithm="HS256"
+            {"sub": str(user.id)},
+            key="attacker-secret-is-also-32-bytes-long",
+            algorithm="HS256",
         )
         auth_service = make_auth_service(session, event_bus)
 

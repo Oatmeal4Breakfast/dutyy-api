@@ -175,30 +175,36 @@ class TestProjectRepo:
         assert result.publishing_status == PublishingStatus.DRAFT
         assert result.published_date is None
 
-    async def test_update_project_publishes(self, session, project):
+    async def test_update_project_publishes(self, session, project, dutyy):
+        session.expunge_all()
         repo = ProjectRepo(session)
+        loaded = await repo.get_by_id_with_dutyys(project.id)
+        assert loaded is not None
 
-        assert project.publishing_status == PublishingStatus.DRAFT
+        assert loaded.publishing_status == PublishingStatus.DRAFT
 
-        project.publish()
+        loaded.publish()
 
-        await repo.update(project)
+        await repo.update(loaded)
 
         result: Project | None = await repo.get_by_id(project.id)
 
         assert result is not None
         assert result.publishing_status == PublishingStatus.PUBLISHED
-        assert result.published_date == project.published_date
+        assert result.published_date == loaded.published_date
 
-    async def test_update_project_unpublish_retains_date(self, session, project):
+    async def test_update_project_unpublish_retains_date(self, session, project, dutyy):
+        session.expunge_all()
         repo = ProjectRepo(session)
+        loaded = await repo.get_by_id_with_dutyys(project.id)
+        assert loaded is not None
 
-        project.publish()
-        await repo.update(project)
-        published_date = project.published_date
+        loaded.publish()
+        await repo.update(loaded)
+        published_date = loaded.published_date
 
-        project.unpublish()
-        await repo.update(project)
+        loaded.unpublish()
+        await repo.update(loaded)
 
         result: Project | None = await repo.get_by_id(project.id)
 

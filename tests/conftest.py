@@ -91,7 +91,7 @@ def make_user_service(session, event_bus) -> UserService:
 def make_auth_service(session, event_bus) -> AuthService:
     config = AuthServiceConfig(
         token_ttl=timedelta(minutes=30),
-        secret="test_secret",
+        secret="test-secret-at-least-32-bytes-long",
     )
     return AuthService(
         uow_factory=partial(FakeUnitOfWork, session, event_bus),

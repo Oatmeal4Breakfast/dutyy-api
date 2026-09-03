@@ -34,6 +34,13 @@ def make_dutyy(**kwargs) -> Dutyy:
     return Dutyy(**{**defaults, **kwargs})
 
 
+def make_publishable_project() -> Project:
+    project = make_project()
+    project.add_dutyy(make_dutyy(project_id=project.id))
+    project.events.clear()
+    return project
+
+
 def test_create_project_success() -> None:
     project = make_project()
 
@@ -224,7 +231,7 @@ def test_new_project_defaults_to_draft() -> None:
 
 
 def test_publish_success() -> None:
-    project = make_project()
+    project = make_publishable_project()
 
     project.publish()
 
@@ -239,7 +246,7 @@ def test_publish_success() -> None:
 
 
 def test_publish_appends_event() -> None:
-    project = make_project()
+    project = make_publishable_project()
 
     project.publish()
 
@@ -253,7 +260,7 @@ def test_publish_appends_event() -> None:
 
 
 def test_publish_idempotent() -> None:
-    project = make_project()
+    project = make_publishable_project()
 
     project.publish()
     first_published_date = project.published_date
@@ -265,7 +272,7 @@ def test_publish_idempotent() -> None:
 
 
 def test_unpublish_success() -> None:
-    project = make_project()
+    project = make_publishable_project()
     project.publish()
 
     project.unpublish()
@@ -280,7 +287,7 @@ def test_unpublish_success() -> None:
 def test_unpublish_retains_published_date() -> None:
     # Intentional: unpublishing moves status back to DRAFT but keeps
     # published_date as a historical "last published at" marker.
-    project = make_project()
+    project = make_publishable_project()
     project.publish()
     published_date = project.published_date
 
@@ -301,7 +308,7 @@ def test_unpublish_idempotent_on_draft() -> None:
 
 
 def test_publish_is_orthogonal_to_status() -> None:
-    project = make_project()
+    project = make_publishable_project()
 
     project.update_status(ProjectStatus.COMPLETE)
     project.publish()
