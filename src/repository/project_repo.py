@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import InstrumentedAttribute, joinedload
 
 from src.db.orm import project_user_table, projects_table
 from src.domain.exceptions import ProjectAlreadyExistsError
@@ -129,6 +130,28 @@ class ProjectRepo(AbstractRepository[Project]):
 
         project = Project(**row)
         self.seen.add(project)
+
+        return project
+
+    async def get_by_id_with_dutyys(self, project_id: UUID) -> Project | None:
+        dutyys_relationship = cast(InstrumentedAttribute[Any], Project.dutyys)
+
+        stmt: Select[tuple[Project]] = (
+            select(Project)
+            .options(joinedload(dutyys_relationship))
+            .where(projects_table.c.id == project_id)
+        )
+
+        try:
+            result: Result = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        project: Project | None = result.unique().scalar_one_or_none()
+
+        if project is not None:
+            self.seen.add(project)
 
         return project
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from src.domain.project import Project, ProjectStatus, PublishingStatus
+from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
 from tests.conftest import make_project
 
@@ -81,6 +82,28 @@ class TestProjectRepo:
         assert result is not None
         assert isinstance(result, Project)
         assert result.status == project.status
+
+    async def test_get_by_id_with_dutyys_loads_collection(
+        self, session, project, dutyy
+    ):
+        session.expunge_all()
+        repo = ProjectRepo(session)
+
+        result = await repo.get_by_id_with_dutyys(project.id)
+
+        assert result is not None
+        assert [item.id for item in result.dutyys] == [dutyy.id]
+
+    async def test_removing_loaded_dutyy_deletes_orphan(self, session, project, dutyy):
+        session.expunge_all()
+        repo = ProjectRepo(session)
+        loaded = await repo.get_by_id_with_dutyys(project.id)
+        assert loaded is not None
+
+        loaded.delete_dutyy(dutyy.id)
+        await repo.update(loaded)
+
+        assert await DutyRepo(session).get_by_id(dutyy.id) is None
 
     async def test_get_by_id_resturns_none(self, session, user):
         repo = ProjectRepo(session)

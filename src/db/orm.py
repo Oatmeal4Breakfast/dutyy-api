@@ -9,6 +9,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    event,
 )
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import registry, relationship
@@ -33,7 +34,12 @@ dutyy_table = Table(
     Column("created_date", DateTime(timezone=True), nullable=False),
     Column("modified_date", DateTime(timezone=True), nullable=True),
     Column("completed_date", DateTime(timezone=True), nullable=True),
-    Column("project_id", ForeignKey("projects.id"), nullable=False, index=True),
+    Column(
+        "project_id",
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    ),
     Column("id", UUID, primary_key=True),
 )
 
@@ -134,9 +140,18 @@ device_auth_code_table = Table(
 
 mapper_registry.map_imperatively(Dutyy, dutyy_table)
 mapper_registry.map_imperatively(
-    Project, projects_table, properties={"dutyys": relationship(Dutyy, lazy="raise")}
+    Project,
+    projects_table,
+    properties={
+        "dutyys": relationship(Dutyy, lazy="raise", cascade="all, delete-orphan")
+    },
 )
 mapper_registry.map_imperatively(User, users_table)
 mapper_registry.map_imperatively(APIKey, api_key_table)
 mapper_registry.map_imperatively(PasswordSetToken, password_set_tokens_table)
 mapper_registry.map_imperatively(DeviceCode, device_auth_code_table)
+
+
+@event.listens_for(Project, "load")
+def initialize_project_events(project: Project, _) -> None:
+    project.events = []
