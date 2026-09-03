@@ -55,7 +55,7 @@ packages = ["src"]
 [tool.ruff]
 line-length = 88
 target-version = "py314"
-# Do not exclude alembic - ensure migrations are linted/formatted too
+extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

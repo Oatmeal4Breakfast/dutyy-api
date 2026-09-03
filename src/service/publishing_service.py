@@ -61,3 +61,7 @@ class PublishingService:
                 return
 
             project.publish()
+
+            await uow.project.update(project)
+            await uow.commit()
+            return

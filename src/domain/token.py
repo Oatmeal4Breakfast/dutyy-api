@@ -48,7 +48,10 @@ class PasswordSetToken:
             raise DomainValidationError(
                 entity="PasswordSetToken",
                 errors=[
-                    f"PasswordSetToken with id {self.id} is expired or has been consumed."
+                    f"""
+                        PasswordSetToken with id {self.id}
+                        is expired or has been consumed.
+                    """
                 ],
             )
         self.used_at = datetime.now(UTC)
