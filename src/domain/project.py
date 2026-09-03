@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from enum import StrEnum, auto
 from typing import Any
@@ -74,9 +74,11 @@ class Project:
         self._touch()
 
     def to_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = asdict(self)
-        data.pop("events", None)
-        return data
+        return {
+            item.name: getattr(self, item.name)
+            for item in fields(self)
+            if item.name not in {"dutyys", "events"}
+        }
 
     def update_name(self, name: str) -> None:
         norm_name = name.strip().lower()
@@ -90,8 +92,12 @@ class Project:
             return
         match status:
             case ProjectStatus.IN_PROGRESS:
+                if self.status == ProjectStatus.COMPLETE:
+                    self.completed_date = None
                 self._mark_in_progress()
             case ProjectStatus.ABANDONED:
+                if self.status == ProjectStatus.COMPLETE:
+                    self.completed_date = None
                 self._mark_abandoned()
             case ProjectStatus.COMPLETE:
                 self._mark_complete()
@@ -103,6 +109,9 @@ class Project:
     def publish(self) -> None:
         if self.publishing_status == PublishingStatus.PUBLISHED:
             return
+
+        if len(self.dutyys) <= 0:
+            raise DomainValidationError("Project", ["project_has_no_dutyys"])
         self.publishing_status = PublishingStatus.PUBLISHED
         self.published_date = self._touch()
         self.events.append(

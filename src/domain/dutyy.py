@@ -81,6 +81,8 @@ class Dutyy:
 
         match status:
             case DutyyStatus.IN_PROGRESS:
+                if self.status == DutyyStatus.COMPLETE:
+                    self.completed_date = None
                 self._mark_in_progress()
             case DutyyStatus.COMPLETE:
                 self._mark_complete()
