@@ -27,12 +27,14 @@ from tests.conftest import make_project_service
 @pytest.mark.integration
 class TestProjectService:
     async def test_create_project_draft_persists_project(
-        self, session, event_bus, user
+        self, session, event_bus, user, db_roundtrip
     ):
         service = make_project_service(session, event_bus)
 
         created = await service.create_project_draft(" New Project ", user.id)
-        persisted = await ProjectRepo(session).get_by_id(created.id)
+
+        await db_roundtrip()
+        persisted = await ProjectRepo(session).get_by_id(created.id, user.id)
 
         assert persisted is not None
         assert persisted.name == "new project"
@@ -40,39 +42,40 @@ class TestProjectService:
         assert persisted.publishing_status == PublishingStatus.DRAFT
 
     async def test_publish_project_persists_status_and_fires_event(
-        self, session, event_bus, project, dutyy
+        self, session, event_bus, project, dutyy, db_roundtrip
     ):
         handler = AsyncMock()
         event_bus.subscribe(ProjectPublished, handler)
-        session.expunge_all()
+        await db_roundtrip()
         service = make_project_service(session, event_bus)
 
-        await service.publish_project(project.id)
+        await service.publish_project(project.id, project.owner_id)
         await event_bus.drain()
 
-        persisted = await ProjectRepo(session).get_by_id(project.id)
+        await db_roundtrip()
+        persisted = await ProjectRepo(session).get_by_id(project.id, project.owner_id)
         assert persisted is not None
         assert persisted.publishing_status == PublishingStatus.PUBLISHED
         assert persisted.published_date is not None
         handler.assert_awaited_once()
 
     async def test_publish_project_rejects_project_without_dutyys(
-        self, session, event_bus, project
+        self, session, event_bus, project, db_roundtrip
     ):
-        session.expunge_all()
+        await db_roundtrip()
         service = make_project_service(session, event_bus)
 
         with pytest.raises(DomainValidationError):
-            await service.publish_project(project.id)
+            await service.publish_project(project.id, project.owner_id)
 
     async def test_publish_project_rejects_unknown_project(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
         with pytest.raises(ProjectNotFound):
-            await service.publish_project(uuid7())
+            await service.publish_project(uuid7(), uuid7())
 
     async def test_add_dutyy_persists_it_and_fires_event(
-        self, session, event_bus, project
+        self, session, event_bus, project, db_roundtrip
     ):
         handler = AsyncMock()
         event_bus.subscribe(DutyyAdded, handler)
@@ -81,10 +84,12 @@ class TestProjectService:
         created = await service.add_dutyy(
             dutyy_title=" New Dutyy ",
             project_id=project.id,
+            owner_id=project.owner_id,
             details=" details ",
         )
         await event_bus.drain()
 
+        await db_roundtrip()
         persisted = await DutyRepo(session).get_by_id(created.id)
         assert persisted is not None
         assert persisted.title == "new dutyy"
@@ -96,19 +101,22 @@ class TestProjectService:
         service = make_project_service(session, event_bus)
 
         with pytest.raises(ProjectNotFound):
-            await service.add_dutyy("New Dutyy", uuid7())
+            await service.add_dutyy("New Dutyy", uuid7(), uuid7())
 
     async def test_remove_dutyy_deletes_it_and_fires_event(
-        self, session, event_bus, project, dutyy
+        self, session, event_bus, project, dutyy, db_roundtrip
     ):
         handler = AsyncMock()
         event_bus.subscribe(DutyyRemoved, handler)
-        session.expunge_all()
+        await db_roundtrip()
         service = make_project_service(session, event_bus)
 
-        await service.remove_dutyy(dutyy_id=dutyy.id, project_id=project.id)
+        await service.remove_dutyy(
+            dutyy_id=dutyy.id, project_id=project.id, owner_id=project.owner_id
+        )
         await event_bus.drain()
 
+        await db_roundtrip()
         assert await DutyRepo(session).get_by_id(dutyy.id) is None
         handler.assert_awaited_once()
         event = handler.await_args.args[0]
@@ -119,19 +127,23 @@ class TestProjectService:
         service = make_project_service(session, event_bus)
 
         with pytest.raises(ProjectNotFound):
-            await service.remove_dutyy(dutyy_id=uuid7(), project_id=uuid7())
+            await service.remove_dutyy(
+                dutyy_id=uuid7(), project_id=uuid7(), owner_id=uuid7()
+            )
 
     async def test_remove_dutyy_rejects_unassigned_id(
-        self, session, event_bus, project
+        self, session, event_bus, project, db_roundtrip
     ):
-        session.expunge_all()
+        await db_roundtrip()
         service = make_project_service(session, event_bus)
 
         with pytest.raises(DutyyNotAssignedError):
-            await service.remove_dutyy(dutyy_id=uuid7(), project_id=project.id)
+            await service.remove_dutyy(
+                dutyy_id=uuid7(), project_id=project.id, owner_id=project.owner_id
+            )
 
     async def test_edit_dutyy_persists_all_changes_and_fires_completion_event(
-        self, session, event_bus, dutyy
+        self, session, event_bus, user, dutyy, db_roundtrip
     ):
         handler = AsyncMock()
         event_bus.subscribe(DutyyCompleted, handler)
@@ -139,6 +151,7 @@ class TestProjectService:
 
         updated = await service.edit_dutyy(
             dutyy.id,
+            user.id,
             EditDutyyCommand(
                 title=" Updated Title ",
                 details=" updated details ",
@@ -147,6 +160,7 @@ class TestProjectService:
         )
         await event_bus.drain()
 
+        await db_roundtrip()
         persisted = await DutyRepo(session).get_by_id(dutyy.id)
         assert persisted is not None
         assert updated.title == persisted.title == "updated title"
@@ -155,27 +169,33 @@ class TestProjectService:
         assert persisted.completed_date is not None
         handler.assert_awaited_once()
 
-    async def test_edit_dutyy_empty_command_is_noop(self, session, event_bus, dutyy):
+    async def test_edit_dutyy_empty_command_is_noop(
+        self, session, event_bus, user, dutyy
+    ):
         service = make_project_service(session, event_bus)
 
-        updated = await service.edit_dutyy(dutyy.id, EditDutyyCommand())
+        updated = await service.edit_dutyy(dutyy.id, user.id, EditDutyyCommand())
 
         assert updated.modified_date is None
 
-    async def test_edit_dutyy_validates_empty_title(self, session, event_bus, dutyy):
+    async def test_edit_dutyy_validates_empty_title(
+        self, session, event_bus, user, dutyy
+    ):
         service = make_project_service(session, event_bus)
 
         with pytest.raises(DomainValidationError):
-            await service.edit_dutyy(dutyy.id, EditDutyyCommand(title=""))
+            await service.edit_dutyy(dutyy.id, user.id, EditDutyyCommand(title=""))
 
     async def test_edit_dutyy_rejects_unknown_dutyy(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
         with pytest.raises(DutyyNotFound):
-            await service.edit_dutyy(uuid7(), EditDutyyCommand(title="Updated"))
+            await service.edit_dutyy(
+                uuid7(), uuid7(), EditDutyyCommand(title="Updated")
+            )
 
     async def test_edit_project_persists_all_changes_and_fires_completion_event(
-        self, session, event_bus, project
+        self, session, event_bus, project, db_roundtrip
     ):
         handler = AsyncMock()
         event_bus.subscribe(ProjectCompleted, handler)
@@ -183,11 +203,13 @@ class TestProjectService:
 
         updated = await service.edit_project(
             project.id,
+            project.owner_id,
             EditProjectCommand(name=" Updated Project ", status=ProjectStatus.COMPLETE),
         )
         await event_bus.drain()
 
-        persisted = await ProjectRepo(session).get_by_id(project.id)
+        await db_roundtrip()
+        persisted = await ProjectRepo(session).get_by_id(project.id, updated.owner_id)
         assert persisted is not None
         assert updated.name == persisted.name == "updated project"
         assert persisted.status == ProjectStatus.COMPLETE
@@ -199,7 +221,9 @@ class TestProjectService:
     ):
         service = make_project_service(session, event_bus)
 
-        updated = await service.edit_project(project.id, EditProjectCommand())
+        updated = await service.edit_project(
+            project.id, project.owner_id, EditProjectCommand()
+        )
 
         assert updated.modified_date is None
 
@@ -207,18 +231,21 @@ class TestProjectService:
         service = make_project_service(session, event_bus)
 
         with pytest.raises(ProjectNotFound):
-            await service.edit_project(uuid7(), EditProjectCommand(name="Updated"))
+            await service.edit_project(
+                uuid7(), uuid7(), EditProjectCommand(name="Updated")
+            )
 
     async def test_unpublish_project_persists_draft_status(
-        self, session, event_bus, project, dutyy
+        self, session, event_bus, project, dutyy, db_roundtrip
     ):
-        session.expunge_all()
+        await db_roundtrip()
         service = make_project_service(session, event_bus)
-        await service.publish_project(project.id)
+        await service.publish_project(project.id, project.owner_id)
 
-        updated = await service.unpublish_project(project.id)
+        updated = await service.unpublish_project(project.id, project.owner_id)
 
-        persisted = await ProjectRepo(session).get_by_id(project.id)
+        await db_roundtrip()
+        persisted = await ProjectRepo(session).get_by_id(project.id, project.owner_id)
         assert persisted is not None
         assert updated.publishing_status == PublishingStatus.DRAFT
         assert persisted.publishing_status == PublishingStatus.DRAFT
@@ -228,4 +255,4 @@ class TestProjectService:
         service = make_project_service(session, event_bus)
 
         with pytest.raises(ProjectNotFound):
-            await service.unpublish_project(uuid7())
+            await service.unpublish_project(uuid7(), uuid7())

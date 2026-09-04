@@ -3,7 +3,7 @@ from uuid import UUID
 import pytest
 
 from src.domain.exceptions import UserAlreadyExistsError
-from src.domain.user import User, UserSummary
+from src.domain.user import User, UserStatus, UserSummary
 from src.repository.user_repo import UserRepo
 from tests.conftest import make_user
 
@@ -48,7 +48,7 @@ class TestUserRepo:
         assert isinstance(results, list)
         assert len(results) == 0
 
-    async def test_update_user(self, session):
+    async def test_update_user(self, session, db_roundtrip):
         repo = UserRepo(session)
         user: User = make_user()
 
@@ -60,7 +60,8 @@ class TestUserRepo:
 
         await repo.update(user)
 
-        results: User | None = await repo.get_by_id(user.id)
+        await db_roundtrip()
+        results: User | None = await repo.get_by_id(user_id)
 
         assert results is not None
         assert isinstance(results, User)
@@ -77,7 +78,7 @@ class TestUserRepo:
             user.first_name = None
             await repo.update(user)
 
-    async def test_delete_user_success(self, session):
+    async def test_delete_user_success(self, session, db_roundtrip):
         repo = UserRepo(session)
         user: User = make_user()
 
@@ -90,9 +91,43 @@ class TestUserRepo:
 
         await repo.delete(user)
 
+        await db_roundtrip()
         result: User | None = await repo.get_by_id(user.id)
 
         assert result is None
+
+    async def test_get_by_id_after_roundtrip_hits_the_database(
+        self, session, user, db_roundtrip
+    ):
+        repo = UserRepo(session)
+        await db_roundtrip()
+
+        result: User | None = await repo.get_by_id(user.id)
+
+        assert result is not None
+        assert result is not user
+        assert result.id == user.id
+        assert result.email == user.email
+
+    async def test_get_by_id_returns_the_identity_mapped_instance(self, session, user):
+        repo = UserRepo(session)
+
+        assert await repo.get_by_id(user.id) is user
+
+    async def test_loaded_user_can_collect_domain_events(
+        self, session, user, db_roundtrip
+    ):
+        """ORM hydration skips __init__, so `events` comes from the load listener."""
+        repo = UserRepo(session)
+        await db_roundtrip()
+
+        loaded: User | None = await repo.get_by_id(user.id)
+        assert loaded is not None
+        assert loaded.events == []
+
+        loaded.update_status(UserStatus.BLOCKED)
+
+        assert len(loaded.events) == 1
 
     async def test_get_users_by_project_id(self, session, project, user):
         repo = UserRepo(session)

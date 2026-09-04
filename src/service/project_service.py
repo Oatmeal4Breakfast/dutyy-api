@@ -73,7 +73,7 @@ class ProjectService:
 
     async def publish_project(self, project_id: UUID, owner_id: UUID) -> None:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id_with_dutyys(
+            project: Project | None = await uow.project.get_by_id(
                 project_id=project_id, owner_id=owner_id
             )
 
@@ -95,7 +95,7 @@ class ProjectService:
         details: str | None = None,
     ) -> Dutyy:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id_with_dutyys(
+            project: Project | None = await uow.project.get_by_id(
                 project_id=project_id, owner_id=owner_id
             )
 
@@ -119,7 +119,7 @@ class ProjectService:
         self, dutyy_id: UUID, project_id: UUID, owner_id: UUID
     ) -> None:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id_with_dutyys(
+            project: Project | None = await uow.project.get_by_id(
                 project_id=project_id, owner_id=owner_id
             )
 
@@ -169,7 +169,7 @@ class ProjectService:
     ) -> Project:
         async with self._uow_factory() as uow:
             project: Project | None = await uow.project.get_by_id(
-                project_id, owner_id=owner_id
+                project_id=project_id, owner_id=owner_id
             )
 
             if project is None:
@@ -190,9 +190,11 @@ class ProjectService:
 
             return project
 
-    async def unpublish_project(self, project_id: UUID) -> Project:
+    async def unpublish_project(self, project_id: UUID, owner_id: UUID) -> Project:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id(project_id=project_id)
+            project: Project | None = await uow.project.get_by_id(
+                project_id=project_id, owner_id=owner_id
+            )
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
@@ -207,7 +209,7 @@ class ProjectService:
 
     async def get_project(self, project_id: UUID, owner_id: UUID) -> Project:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id_with_dutyys(
+            project: Project | None = await uow.project.get_by_id(
                 project_id=project_id, owner_id=owner_id
             )
 

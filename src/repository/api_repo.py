@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.db.orm import api_key_table
 from src.domain.api import APIKey, APIKeySummary
 from src.logger import get_logger
-from src.repository.abstract_repo import Operation, RepoError
+from src.repository.abstract_repo import Operation, RepoError, assert_managed
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy import Result, RowMapping, Select, Update
+    from sqlalchemy import Result, RowMapping, Select
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger(__name__)
@@ -60,13 +60,9 @@ class APIRepo:
             raise
 
     async def update(self, entity: APIKey) -> None:
-        data: dict[str, Any] = entity.to_dict()
-        stmt: Update = (
-            update(api_key_table).where(api_key_table.c.id == entity.id).values(**data)
-        )
+        assert_managed(self._session, entity)
 
         try:
-            await self._session.execute(stmt)
             await self._session.flush()
         except IntegrityError:
             logger.error(
@@ -80,29 +76,25 @@ class APIRepo:
             raise
 
     async def get_by_hash(self, hash: str) -> APIKey | None:
-        stmt: Select[Any] = select(api_key_table).where(
+        stmt: Select[tuple[APIKey]] = select(APIKey).where(
             api_key_table.c.key_hash == hash
         )
 
         try:
-            result: Result[Any] = await self._session.execute(stmt)
+            result: Result[tuple[APIKey]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
-
-        return APIKey(**row) if row is not None else None
+        return result.scalars().one_or_none()
 
     async def get_by_id(self, key_id: UUID) -> APIKey | None:
-        stmt: Select[Any] = select(api_key_table).where(api_key_table.c.id == key_id)
+        stmt: Select[tuple[APIKey]] = select(APIKey).where(api_key_table.c.id == key_id)
 
         try:
-            result: Result[Any] = await self._session.execute(stmt)
+            result: Result[tuple[APIKey]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
-
-        return APIKey(**row) if row is not None else None
+        return result.scalars().one_or_none()

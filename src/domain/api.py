@@ -1,9 +1,8 @@
 import hashlib
 import secrets
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum, auto
-from typing import Any
 from uuid import UUID, uuid7
 
 from src.domain.exceptions import DomainValidationError
@@ -65,9 +64,6 @@ class APIKey:
 
     def mark_inactive(self) -> None:
         self.status = APIKeyStatus.INACTIVE
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
 
     def __hash__(self):
         return hash(self.id)

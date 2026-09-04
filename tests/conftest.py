@@ -152,6 +152,22 @@ async def session(engine, setup_tables):
 
 
 @pytest.fixture
+async def db_roundtrip(session):
+    """Force the next read to hit Postgres instead of the session's identity map.
+
+    Entities are session-managed now, so `repo.get_by_id(x)` after `repo.add(x)`
+    returns the very same object and emits no SQL -- a read-back assertion would pass
+    even if the write were broken. Call this between a write and its read-back.
+    """
+
+    async def _roundtrip() -> None:
+        await session.flush()
+        session.expunge_all()
+
+    return _roundtrip
+
+
+@pytest.fixture
 async def user(session) -> User:
     user_repo = UserRepo(session)
     u = make_user()

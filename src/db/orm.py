@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 from sqlalchemy import (
     UUID,
     Column,
@@ -12,7 +14,7 @@ from sqlalchemy import (
     event,
 )
 from sqlalchemy.dialects.postgresql import CITEXT
-from sqlalchemy.orm import registry, relationship
+from sqlalchemy.orm import InstrumentedAttribute, registry, relationship
 
 from src.domain.api import APIKey, APIKeyStatus
 from src.domain.device_auth import DeviceCode, DeviceCodeStatus, KeyLifetime
@@ -143,7 +145,15 @@ mapper_registry.map_imperatively(
     Project,
     projects_table,
     properties={
-        "dutyys": relationship(Dutyy, lazy="raise", cascade="all, delete-orphan")
+        "dutyys": relationship(
+            Dutyy,
+            lazy="raise",
+            cascade="all, delete-orphan",
+            # The FK carries ondelete="CASCADE", so let Postgres remove children on a
+            # parent delete instead of making the ORM load the collection to cascade in
+            # Python -- which lazy="raise" would refuse.
+            passive_deletes=True,
+        )
     },
 )
 mapper_registry.map_imperatively(User, users_table)
@@ -152,11 +162,18 @@ mapper_registry.map_imperatively(PasswordSetToken, password_set_tokens_table)
 mapper_registry.map_imperatively(DeviceCode, device_auth_code_table)
 
 
-@event.listens_for(Project, "load")
-def initialize_project_events(project: Project, _) -> None:
-    project.events = []
+PROJECT_DUTYYS: InstrumentedAttribute[Any] = cast(
+    InstrumentedAttribute[Any], Project.dutyys
+)
 
 
-@event.listens_for(Dutyy, "load")
-def initialize_dutyy_events(dutyy: Dutyy, _) -> None:
-    dutyy.events = []
+def _initialize_events(entity: Dutyy | Project | User, _) -> None:
+    entity.events = []
+
+
+# ORM hydration goes through __new__, so __init__/__post_init__ never run and the
+# non-init `events` field is absent on loaded instances. Only "load" is registered --
+# "refresh" fires on an instance that may already hold queued events, and
+# re-initializing there would silently drop them.
+for _entity_cls in (Project, Dutyy, User):
+    event.listens_for(_entity_cls, "load")(_initialize_events)

@@ -24,7 +24,7 @@ class TestDutyyRepo:
 
         assert len(result) == 0
 
-    async def test_delete_dutyy_success(self, session, dutyy):
+    async def test_delete_dutyy_success(self, session, dutyy, db_roundtrip):
         repo = DutyRepo(session)
 
         get_all: list[Dutyy] = await repo.get_all()
@@ -33,10 +33,11 @@ class TestDutyyRepo:
 
         await repo.delete(dutyy)
 
+        await db_roundtrip()
         result: list[Dutyy] = await repo.get_all()
         assert len(result) == 0
 
-    async def test_add_dutyy_sucess(self, session, project):
+    async def test_add_dutyy_sucess(self, session, project, db_roundtrip):
         repo = DutyRepo(session)
 
         dutyy: Dutyy = make_dutyy(project.id)
@@ -46,11 +47,12 @@ class TestDutyyRepo:
 
         await repo.add(dutyy)
 
+        await db_roundtrip()
         result: Dutyy | None = await repo.get_by_id(dutyy.id)
         assert result is not None
         assert isinstance(result, Dutyy)
 
-    async def test_update_dutyy_success(self, session, dutyy):
+    async def test_update_dutyy_success(self, session, dutyy, db_roundtrip):
         repo = DutyRepo(session)
 
         assert dutyy.status == DutyyStatus.NEW
@@ -59,6 +61,7 @@ class TestDutyyRepo:
 
         await repo.update(dutyy)
 
+        await db_roundtrip()
         result: Dutyy | None = await repo.get_by_id(dutyy.id)
 
         assert result is not None
@@ -71,6 +74,34 @@ class TestDutyyRepo:
         result: Dutyy | None = await repo.get_by_id(dutyy.id)
         assert result is not None
         assert isinstance(result, Dutyy)
+
+    async def test_get_by_id_after_roundtrip_hits_the_database(
+        self, session, dutyy, db_roundtrip
+    ):
+        repo = DutyRepo(session)
+        await db_roundtrip()
+
+        result: Dutyy | None = await repo.get_by_id(dutyy.id)
+
+        assert result is not None
+        assert result is not dutyy
+        assert result.id == dutyy.id
+        assert result.title == dutyy.title
+
+    async def test_get_by_id_with_owner_success(self, session, dutyy, user):
+        repo = DutyRepo(session)
+
+        result: Dutyy | None = await repo.get_by_id_with_owner(dutyy.id, user.id)
+
+        assert result is not None
+        assert result.id == dutyy.id
+
+    async def test_get_by_id_with_owner_scopes_to_owner(self, session, dutyy):
+        from uuid import uuid7
+
+        repo = DutyRepo(session)
+
+        assert await repo.get_by_id_with_owner(dutyy.id, uuid7()) is None
 
     async def test_get_by_project_id_success(self, session, dutyy, project):
         repo = DutyRepo(session)
