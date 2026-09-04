@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import dutyy_table, project_user_table
+from src.db.orm import dutyy_table, projects_table, project_user_table
 from src.domain.dutyy import Dutyy
 from src.logger import get_logger
 from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
@@ -102,6 +102,24 @@ class DutyRepo(AbstractRepository[Dutyy]):
         row: RowMapping | None = result.mappings().one_or_none()
 
         return Dutyy(**row) if row is not None else None
+
+    async def get_by_id_with_owner(
+        self, dutyy_id: UUID, owner_id: UUID
+    ) -> Dutyy | None:
+        stmt: Select = (
+            select(Dutyy)
+            .where(dutyy_table.c.id == dutyy_id)
+            .join(projects_table, projects_table.c.id == dutyy_table.c.project_id)
+            .where(projects_table.c.owner_id == owner_id)
+        )
+
+        try:
+            results: Result = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        return results.unique().scalar_one_or_none()
 
     async def search_by_name(self, dutyy_name: str, user_id: UUID) -> list[Dutyy]:
         stmt: Select[Any] = (

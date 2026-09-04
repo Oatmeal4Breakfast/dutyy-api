@@ -71,10 +71,10 @@ class ProjectService:
             )
         return project
 
-    async def publish_project(self, project_id: UUID) -> None:
+    async def publish_project(self, project_id: UUID, owner_id: UUID) -> None:
         async with self._uow_factory() as uow:
             project: Project | None = await uow.project.get_by_id_with_dutyys(
-                project_id=project_id
+                project_id=project_id, owner_id=owner_id
             )
 
             if project is None:
@@ -88,11 +88,15 @@ class ProjectService:
             return
 
     async def add_dutyy(
-        self, dutyy_title: str, project_id: UUID, details: str | None = None
+        self,
+        dutyy_title: str,
+        project_id: UUID,
+        owner_id: UUID,
+        details: str | None = None,
     ) -> Dutyy:
         async with self._uow_factory() as uow:
             project: Project | None = await uow.project.get_by_id_with_dutyys(
-                project_id=project_id
+                project_id=project_id, owner_id=owner_id
             )
 
             if project is None:
@@ -111,10 +115,12 @@ class ProjectService:
 
             return dutyy
 
-    async def remove_dutyy(self, dutyy_id: UUID, project_id: UUID) -> None:
+    async def remove_dutyy(
+        self, dutyy_id: UUID, project_id: UUID, owner_id: UUID
+    ) -> None:
         async with self._uow_factory() as uow:
             project: Project | None = await uow.project.get_by_id_with_dutyys(
-                project_id=project_id
+                project_id=project_id, owner_id=owner_id
             )
 
             if project is None:
@@ -125,9 +131,13 @@ class ProjectService:
             await uow.project.update(project)
             await uow.commit()
 
-    async def edit_dutyy(self, dutyy_id: UUID, updates: EditDutyyCommand) -> Dutyy:
+    async def edit_dutyy(
+        self, dutyy_id: UUID, owner_id: UUID, updates: EditDutyyCommand
+    ) -> Dutyy:
         async with self._uow_factory() as uow:
-            dutyy: Dutyy | None = await uow.dutyy.get_by_id(dutyy_id=dutyy_id)
+            dutyy: Dutyy | None = await uow.dutyy.get_by_id_with_owner(
+                dutyy_id=dutyy_id, owner_id=owner_id
+            )
 
             if dutyy is None:
                 logger.warning(event="dutyy_not_found", dutyy_id=str(dutyy_id))
@@ -155,10 +165,12 @@ class ProjectService:
             return dutyy
 
     async def edit_project(
-        self, project_id: UUID, updates: EditProjectCommand
+        self, project_id: UUID, owner_id: UUID, updates: EditProjectCommand
     ) -> Project:
         async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id(project_id)
+            project: Project | None = await uow.project.get_by_id(
+                project_id, owner_id=owner_id
+            )
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
@@ -192,3 +204,18 @@ class ProjectService:
             await uow.commit()
 
             return project
+
+    async def get_project(self, project_id: UUID, owner_id: UUID) -> Project:
+        async with self._uow_factory() as uow:
+            project: Project | None = await uow.project.get_by_id_with_dutyys(
+                project_id=project_id, owner_id=owner_id
+            )
+
+            if project is None:
+                logger.warning(event="project_not_found", project_id=str(project_id))
+                raise ProjectNotFound(project_id)
+            return project
+
+    async def list_projects(self, owner_id: UUID) -> list[Project]:
+        async with self._uow_factory() as uow:
+            return await uow.project.get_by_owner_id(owner_id=owner_id)

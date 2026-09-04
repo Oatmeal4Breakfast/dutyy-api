@@ -112,9 +112,9 @@ class ProjectRepo(AbstractRepository[Project]):
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.UPDATE)
             raise
 
-    async def get_by_id(self, project_id: UUID) -> Project | None:
+    async def get_by_id(self, project_id: UUID, owner_id: UUID) -> Project | None:
         stmt: Select[Any] = select(projects_table).where(
-            projects_table.c.id == project_id
+            projects_table.c.id == project_id, projects_table.c.owner_id == owner_id
         )
 
         try:
@@ -133,13 +133,17 @@ class ProjectRepo(AbstractRepository[Project]):
 
         return project
 
-    async def get_by_id_with_dutyys(self, project_id: UUID) -> Project | None:
+    async def get_by_id_with_dutyys(
+        self, project_id: UUID, owner_id: UUID
+    ) -> Project | None:
         dutyys_relationship = cast(InstrumentedAttribute[Any], Project.dutyys)
 
         stmt: Select[tuple[Project]] = (
             select(Project)
             .options(joinedload(dutyys_relationship))
-            .where(projects_table.c.id == project_id)
+            .where(
+                projects_table.c.id == project_id, projects_table.c.owner_id == owner_id
+            )
         )
 
         try:
@@ -173,8 +177,12 @@ class ProjectRepo(AbstractRepository[Project]):
         return [Project(**row) for row in rows]
 
     async def get_by_owner_id(self, owner_id: UUID) -> list[Project]:
-        stmt: Select[Any] = select(projects_table).where(
-            projects_table.c.owner_id == owner_id
+        dutyys_relationship = cast(InstrumentedAttribute[Any], Project.dutyys)
+
+        stmt: Select[tuple[Project]] = (
+            select(Project)
+            .options(joinedload(dutyys_relationship))
+            .where(projects_table.c.owner_id == owner_id)
         )
 
         try:
