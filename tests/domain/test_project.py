@@ -223,6 +223,21 @@ def test_update_status_complete_not_reversible() -> None:
         project.update_status(ProjectStatus.NEW)
 
 
+def test_add_dutyy_to_published_project_fails() -> None:
+    project = make_project()
+    default_dutyy = make_dutyy()
+
+    project.add_dutyy(default_dutyy)
+    project.publish()
+
+    dutyy_2 = make_dutyy(
+        title="second_dutyy",
+        project_id=UUID("12345678-1234-5678-1234-567812345679"),
+    )
+    with pytest.raises(DomainValidationError):
+        project.add_dutyy(dutyy=dutyy_2)
+
+
 def test_new_project_defaults_to_draft() -> None:
     project = make_project()
 

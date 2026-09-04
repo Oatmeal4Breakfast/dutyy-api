@@ -81,7 +81,7 @@ class Project(Base):
         self.name = norm_name
 
     def _touch(self) -> datetime:
-        self.modified_date = datetime.now(UTC)
+        self.modified_date: datetime = datetime.now(UTC)
         return self.modified_date
 
     def _mark_in_progress(self) -> None:
@@ -91,7 +91,7 @@ class Project(Base):
     def _mark_complete(self) -> None:
         self.status = ProjectStatus.COMPLETE
         self._touch()
-        self.completed_date = datetime.now(UTC)
+        self.completed_date: datetime = datetime.now(UTC)
         self.events.append(
             ProjectCompleted(self.id, self.created_date, self.completed_date)
         )
@@ -133,7 +133,7 @@ class Project(Base):
         if len(self.dutyys) <= 0:
             raise DomainValidationError("Project", ["project_has_no_dutyys"])
         self.publishing_status = PublishingStatus.PUBLISHED
-        self.published_date = self._touch()
+        self.published_date: datetime = self._touch()
         self.events.append(
             ProjectPublished(
                 project_id=self.id,
@@ -150,6 +150,8 @@ class Project(Base):
         self._touch()
 
     def add_dutyy(self, dutyy: Dutyy) -> None:
+        if self.publishing_status != PublishingStatus.DRAFT:
+            raise DomainValidationError("Project", ["project_not_in_draft_mode"])
         for d in self.dutyys:
             if d.id == dutyy.id:
                 raise DutyyAssignedError(id=dutyy.id)

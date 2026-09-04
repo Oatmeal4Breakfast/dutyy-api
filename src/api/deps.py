@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -11,6 +12,7 @@ from src.domain.user import User, UserSummary
 from src.service.api_service import APIService
 from src.service.auth_service import AuthService
 from src.service.device_auth_service import DeviceAuthService
+from src.service.project_service import ProjectService
 from src.service.user_service import UserService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/dutyy/api/v1/auth/login")
@@ -45,6 +47,16 @@ def get_uow(
     bus: EventBus = Depends(get_event_bus),
 ) -> UnitOfWork:
     return UnitOfWork(session_factory, event_bus=bus)
+
+
+def get_project_service(
+    session_factory: Annotated[
+        async_sessionmaker[AsyncSession], Depends(get_session_factory)
+    ],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
+) -> ProjectService:
+    uow_factory = partial(UnitOfWork, session_factory, event_bus)
+    return ProjectService(uow_factory)
 
 
 async def get_current_user(

@@ -16,10 +16,10 @@ from src.domain.project import ProjectStatus, PublishingStatus
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
 from src.service.project_service import (
-    DutyyNotFound,
+    DutyyNotFoundError,
     EditDutyyCommand,
     EditProjectCommand,
-    ProjectNotFound,
+    ProjectNotFoundError,
 )
 from tests.conftest import make_project_service
 
@@ -71,7 +71,7 @@ class TestProjectService:
     async def test_publish_project_rejects_unknown_project(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
-        with pytest.raises(ProjectNotFound):
+        with pytest.raises(ProjectNotFoundError):
             await service.publish_project(uuid7(), uuid7())
 
     async def test_add_dutyy_persists_it_and_fires_event(
@@ -100,8 +100,28 @@ class TestProjectService:
     async def test_add_dutyy_rejects_unknown_project(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
-        with pytest.raises(ProjectNotFound):
+        with pytest.raises(ProjectNotFoundError):
             await service.add_dutyy("New Dutyy", uuid7(), uuid7())
+
+    async def test_add_dutyy_rejects_published_project(
+        self, session, event_bus, project, db_roundtrip
+    ):
+        service = make_project_service(session, event_bus)
+
+        await service.add_dutyy(
+            dutyy_title="old_dutyy", project_id=project.id, owner_id=project.owner_id
+        )
+
+        await service.publish_project(project_id=project.id, owner_id=project.owner_id)
+
+        with pytest.raises(DomainValidationError) as exec_info:
+            await service.add_dutyy(
+                dutyy_title="new_dutyy",
+                project_id=project.id,
+                owner_id=project.owner_id,
+            )
+
+        assert exec_info.value.errors == ["project_not_in_draft_mode"]
 
     async def test_remove_dutyy_deletes_it_and_fires_event(
         self, session, event_bus, project, dutyy, db_roundtrip
@@ -126,7 +146,7 @@ class TestProjectService:
     async def test_remove_dutyy_rejects_unknown_project(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
-        with pytest.raises(ProjectNotFound):
+        with pytest.raises(ProjectNotFoundError):
             await service.remove_dutyy(
                 dutyy_id=uuid7(), project_id=uuid7(), owner_id=uuid7()
             )
@@ -189,7 +209,7 @@ class TestProjectService:
     async def test_edit_dutyy_rejects_unknown_dutyy(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
-        with pytest.raises(DutyyNotFound):
+        with pytest.raises(DutyyNotFoundError):
             await service.edit_dutyy(
                 uuid7(), uuid7(), EditDutyyCommand(title="Updated")
             )
@@ -230,7 +250,7 @@ class TestProjectService:
     async def test_edit_project_rejects_unknown_project(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
-        with pytest.raises(ProjectNotFound):
+        with pytest.raises(ProjectNotFoundError):
             await service.edit_project(
                 uuid7(), uuid7(), EditProjectCommand(name="Updated")
             )
@@ -254,5 +274,5 @@ class TestProjectService:
     async def test_unpublish_project_rejects_unknown_project(self, session, event_bus):
         service = make_project_service(session, event_bus)
 
-        with pytest.raises(ProjectNotFound):
+        with pytest.raises(ProjectNotFoundError):
             await service.unpublish_project(uuid7(), uuid7())
