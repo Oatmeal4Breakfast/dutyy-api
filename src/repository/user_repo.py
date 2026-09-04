@@ -2,19 +2,24 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from src.db.orm import project_user_table, users_table
 from src.domain.exceptions import UserAlreadyExistsError
 from src.domain.user import User, UserStatus, UserSummary
 from src.logger import get_logger
-from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
+from src.repository.abstract_repo import (
+    AbstractRepository,
+    Operation,
+    RepoError,
+    assert_managed,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy import Delete, Result, RowMapping, Select
+    from sqlalchemy import Result, RowMapping, Select
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -56,10 +61,10 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
     async def delete(self, entity: User) -> None:
         self.seen.add(entity)
-        stmt: Delete = delete(users_table).where(users_table.c.id == entity.id)
+        assert_managed(self._session, entity)
 
         try:
-            await self._session.execute(stmt)
+            await self._session.delete(entity)
             await self._session.flush()
         except IntegrityError:
             logger.error(
@@ -92,10 +97,9 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
     async def update(self, entity: User) -> None:
         self.seen.add(entity)
-        data: dict[str, Any] = entity.to_dict()
-        stmt = update(users_table).where(users_table.c.id == entity.id).values(**data)
+        assert_managed(self._session, entity)
+
         try:
-            await self._session.execute(stmt)
             await self._session.flush()
         except IntegrityError as e:
             logger.error(
@@ -109,20 +113,19 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             raise
 
     async def get_by_id(self, user_id: UUID) -> User | None:
-        stmt: Select[Any] = select(users_table).where(users_table.c.id == user_id)
+        stmt: Select[tuple[User]] = select(User).where(users_table.c.id == user_id)
 
         try:
-            result: Result[Any] = await self._session.execute(stmt)
+            result: Result[tuple[User]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
+        user: User | None = result.scalars().one_or_none()
 
-        if row is None:
+        if user is None:
             return
 
-        user: User = User(**row)
         self.seen.add(user)
 
         return user
@@ -153,28 +156,35 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         return [UserSummary(**row) for row in rows]
 
     async def get_user_by_email(self, email: str) -> User | None:
-        stmt: Select[Any] = select(users_table).where(users_table.c.email == email)
+        stmt: Select[tuple[User]] = select(User).where(users_table.c.email == email)
 
         try:
-            result: Result[Any] = await self._session.execute(stmt)
+            result: Result[tuple[User]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
+        user: User | None = result.scalars().one_or_none()
 
-        return User(**row) if row is not None else None
+        if user is not None:
+            self.seen.add(user)
+
+        return user
 
     async def get_active_user_by_email(self, email: str) -> User | None:
-        stmt: Select = select(users_table).where(
+        stmt: Select[tuple[User]] = select(User).where(
             users_table.c.email == email, users_table.c.status == UserStatus.ACTIVE
         )
 
         try:
-            result: Result = await self._session.execute(stmt)
+            result: Result[tuple[User]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
-        return User(**row) if row is not None else None
+        user: User | None = result.scalars().one_or_none()
+
+        if user is not None:
+            self.seen.add(user)
+
+        return user

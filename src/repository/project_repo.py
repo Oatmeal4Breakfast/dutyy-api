@@ -1,21 +1,26 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Sequence
 
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlalchemy.orm import InstrumentedAttribute, joinedload
+from sqlalchemy.orm import selectinload
 
-from src.db.orm import project_user_table, projects_table
+from src.db.orm import PROJECT_DUTYYS, project_user_table, projects_table
 from src.domain.exceptions import ProjectAlreadyExistsError
 from src.domain.project import Project
 from src.logger import get_logger
-from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
+from src.repository.abstract_repo import (
+    AbstractRepository,
+    Operation,
+    RepoError,
+    assert_managed,
+)
 
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy import Delete, Result, RowMapping, Select
+    from sqlalchemy import Result, Select
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -27,32 +32,43 @@ class ProjectRepo(AbstractRepository[Project]):
         self._session = session
         self.seen: set[Project] = set()
 
+    def _select(self) -> Select[tuple[Project]]:
+        """Every Project read loads the aggregate whole.
+
+        `Project.dutyys` is mapped `lazy="raise"`, so a Project loaded without its
+        collection detonates the first time a domain method touches it (`publish()`
+        checks `len(self.dutyys)`). Eager-loading uniformly leaves `lazy="raise"` as a
+        tripwire that never fires in normal operation. `selectinload` rather than a
+        joined eager load: no row multiplication, so no `.unique()` requirement.
+        """
+        return select(Project).options(selectinload(PROJECT_DUTYYS))
+
     async def get_all(self, page: int = 1, page_size: int = 100) -> list[Project]:
         offset_value: int = (page - 1) * page_size
 
-        stmt: Select[Any] = (
-            select(projects_table)
+        stmt: Select[tuple[Project]] = (
+            self._select()
             .order_by(projects_table.c.id)
             .limit(page_size)
             .offset(offset_value)
         )
 
         try:
-            results: Result[Any] = await self._session.execute(stmt)
+            results: Result[tuple[Project]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        rows: Sequence[RowMapping] = results.mappings().all()
-        return [Project(**row) for row in rows]
+        projects: Sequence[Project] = results.scalars().all()
+        self.seen.update(projects)
+
+        return list(projects)
 
     async def delete(self, entity: Project) -> None:
-        delete_stmt: Delete = delete(projects_table).where(
-            projects_table.c.id == entity.id
-        )
+        assert_managed(self._session, entity)
 
         try:
-            await self._session.execute(delete_stmt)
+            await self._session.delete(entity)
             await self._session.flush()
             self.seen.add(entity)
         except IntegrityError:
@@ -89,16 +105,9 @@ class ProjectRepo(AbstractRepository[Project]):
             raise
 
     async def update(self, entity: Project) -> None:
-        data: dict[str, Any] = entity.to_dict()
-        data.pop("dutyys", None)
-        stmt = (
-            update(projects_table)
-            .where(projects_table.c.id == entity.id)
-            .values(**data)
-        )
+        assert_managed(self._session, entity)
 
         try:
-            await self._session.execute(stmt)
             await self._session.flush()
             self.seen.add(entity)
         except IntegrityError as e:
@@ -113,46 +122,17 @@ class ProjectRepo(AbstractRepository[Project]):
             raise
 
     async def get_by_id(self, project_id: UUID, owner_id: UUID) -> Project | None:
-        stmt: Select[Any] = select(projects_table).where(
+        stmt: Select[tuple[Project]] = self._select().where(
             projects_table.c.id == project_id, projects_table.c.owner_id == owner_id
         )
 
         try:
-            result: Result[Any] = await self._session.execute(stmt)
+            result: Result[tuple[Project]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        row: RowMapping | None = result.mappings().one_or_none()
-
-        if row is None:
-            return
-
-        project = Project(**row)
-        self.seen.add(project)
-
-        return project
-
-    async def get_by_id_with_dutyys(
-        self, project_id: UUID, owner_id: UUID
-    ) -> Project | None:
-        dutyys_relationship = cast(InstrumentedAttribute[Any], Project.dutyys)
-
-        stmt: Select[tuple[Project]] = (
-            select(Project)
-            .options(joinedload(dutyys_relationship))
-            .where(
-                projects_table.c.id == project_id, projects_table.c.owner_id == owner_id
-            )
-        )
-
-        try:
-            result: Result = await self._session.execute(stmt)
-        except OperationalError:
-            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
-            raise
-
-        project: Project | None = result.unique().scalar_one_or_none()
+        project: Project | None = result.scalars().one_or_none()
 
         if project is not None:
             self.seen.add(project)
@@ -160,44 +140,42 @@ class ProjectRepo(AbstractRepository[Project]):
         return project
 
     async def search_by_name(self, project_name: str, owner_id: UUID) -> list[Project]:
-        stmt: Select[Any] = (
-            select(projects_table)
+        stmt: Select[tuple[Project]] = (
+            self._select()
             .where(projects_table.c.name.ilike(f"%{project_name}%"))
             .where(projects_table.c.owner_id == owner_id)
         )
 
         try:
-            results: Result[Any] = await self._session.execute(stmt)
+            results: Result[tuple[Project]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        rows: Sequence[RowMapping] = results.mappings().all()
+        projects: Sequence[Project] = results.scalars().all()
+        self.seen.update(projects)
 
-        return [Project(**row) for row in rows]
+        return list(projects)
 
     async def get_by_owner_id(self, owner_id: UUID) -> list[Project]:
-        dutyys_relationship = cast(InstrumentedAttribute[Any], Project.dutyys)
-
-        stmt: Select[tuple[Project]] = (
-            select(Project)
-            .options(joinedload(dutyys_relationship))
-            .where(projects_table.c.owner_id == owner_id)
+        stmt: Select[tuple[Project]] = self._select().where(
+            projects_table.c.owner_id == owner_id
         )
 
         try:
-            results: Result[Any] = await self._session.execute(stmt)
+            results: Result[tuple[Project]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        rows: Sequence[RowMapping] = results.mappings().all()
+        projects: Sequence[Project] = results.scalars().all()
+        self.seen.update(projects)
 
-        return [Project(**row) for row in rows]
+        return list(projects)
 
     async def get_projects_by_user_id(self, user_id: UUID) -> list[Project]:
-        stmt: Select[Any] = (
-            select(projects_table)
+        stmt: Select[tuple[Project]] = (
+            self._select()
             .join(
                 project_user_table,
                 projects_table.c.id == project_user_table.c.project_id,
@@ -206,11 +184,12 @@ class ProjectRepo(AbstractRepository[Project]):
         )
 
         try:
-            results: Result[Any] = await self._session.execute(stmt)
+            results: Result[tuple[Project]] = await self._session.execute(stmt)
         except OperationalError:
             logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
             raise
 
-        rows: Sequence[RowMapping] = results.mappings().all()
+        projects: Sequence[Project] = results.scalars().all()
+        self.seen.update(projects)
 
-        return [Project(**row) for row in rows]
+        return list(projects)
