@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.api import api_key_router, auth_router, user_router
+from src.api import api_key_router, auth_router, project_router, user_router
 from src.api.deps import get_uow
 from src.bootstrap import register_event_handlers
 from src.bus.bus import EventBus
@@ -21,6 +21,8 @@ from src.db.db import create_engine_and_session
 from src.db.uow import UnitOfWork
 from src.domain.exceptions import (
     DomainValidationError,
+    DutyyAssignedError,
+    DutyyNotAssignedError,
     ProjectAlreadyExistsError,
     UserAlreadyExistsError,
 )
@@ -99,11 +101,21 @@ async def operation_error_handler(
 
 
 async def resource_not_found_handler(
-    request: Request, exc: UserNotFoundError | ProjectNotFoundError | DutyyNotFoundError
+    request: Request,
+    exc: (
+        UserNotFoundError
+        | ProjectNotFoundError
+        | DutyyNotFoundError
+        | DutyyNotAssignedError
+    ),
 ) -> JSONResponse:
-    return JSONResponse(
-        status_code=404, content={"details": f"user {exc.id} not found"}
-    )
+    return JSONResponse(status_code=404, content={"detail": str(exc)})
+
+
+async def dutyy_assigned_handler(
+    request: Request, exc: DutyyAssignedError
+) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": str(exc)})
 
 
 async def health(uow: UnitOfWork = Depends(get_uow)) -> JSONResponse:
@@ -125,10 +137,13 @@ def create_app(lifespan=None) -> FastAPI:
     app.add_exception_handler(UserNotFoundError, resource_not_found_handler)
     app.add_exception_handler(ProjectNotFoundError, resource_not_found_handler)
     app.add_exception_handler(DutyyNotFoundError, resource_not_found_handler)
+    app.add_exception_handler(DutyyNotAssignedError, resource_not_found_handler)
+    app.add_exception_handler(DutyyAssignedError, dutyy_assigned_handler)
 
     app.include_router(user_router.router)
     app.include_router(auth_router.router)
     app.include_router(api_key_router.router)
+    app.include_router(project_router.router)
 
     app.add_api_route("/health", health, methods=["GET"])
 
