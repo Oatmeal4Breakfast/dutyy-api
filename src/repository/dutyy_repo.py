@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import dutyy_table, projects_table, project_user_table
+from src.db.orm import dutyy_table, project_user_table, projects_table
 from src.domain.dutyy import Dutyy
 from src.logger import get_logger
 from src.repository.abstract_repo import AbstractRepository, Operation, RepoError
