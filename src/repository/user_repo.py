@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import project_user_table, users_table
+from src.db.orm import project_user_table
 from src.domain.exceptions import UserAlreadyExistsError
 from src.domain.user import User, UserStatus, UserSummary
 from src.logger import get_logger
@@ -36,16 +36,16 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
         stmt: Select[Any] = (
             select(
-                users_table.c.first_name,
-                users_table.c.last_name,
-                users_table.c.email,
-                users_table.c.last_login,
-                users_table.c.modified_date,
-                users_table.c.created_date,
-                users_table.c.status,
-                users_table.c.id,
+                User.first_name,
+                User.last_name,
+                User.email,
+                User.last_login,
+                User.modified_date,
+                User.created_date,
+                User.status,
+                User.id,
             )
-            .order_by(users_table.c.id)
+            .order_by(User.id)
             .limit(page_size)
             .offset(offset_value)
         )
@@ -113,7 +113,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
             raise
 
     async def get_by_id(self, user_id: UUID) -> User | None:
-        stmt: Select[tuple[User]] = select(User).where(users_table.c.id == user_id)
+        stmt: Select[tuple[User]] = select(User).where(User.id == user_id)
 
         try:
             result: Result[tuple[User]] = await self._session.execute(stmt)
@@ -133,16 +133,16 @@ class UserRepo(AbstractRepository[User, UserSummary]):
     async def get_users_by_project_id(self, project_id: UUID) -> list[UserSummary]:
         stmt: Select[Any] = (
             select(
-                users_table.c.first_name,
-                users_table.c.last_name,
-                users_table.c.email,
-                users_table.c.last_login,
-                users_table.c.modified_date,
-                users_table.c.created_date,
-                users_table.c.status,
-                users_table.c.id,
+                User.first_name,
+                User.last_name,
+                User.email,
+                User.last_login,
+                User.modified_date,
+                User.created_date,
+                User.status,
+                User.id,
             )
-            .join(project_user_table, users_table.c.id == project_user_table.c.user_id)
+            .join(project_user_table, User.id == project_user_table.c.user_id)
             .where(project_user_table.c.project_id == project_id)
         )
 
@@ -156,7 +156,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         return [UserSummary(**row) for row in rows]
 
     async def get_user_by_email(self, email: str) -> User | None:
-        stmt: Select[tuple[User]] = select(User).where(users_table.c.email == email)
+        stmt: Select[tuple[User]] = select(User).where(User.email == email)
 
         try:
             result: Result[tuple[User]] = await self._session.execute(stmt)
@@ -173,7 +173,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
 
     async def get_active_user_by_email(self, email: str) -> User | None:
         stmt: Select[tuple[User]] = select(User).where(
-            users_table.c.email == email, users_table.c.status == UserStatus.ACTIVE
+            User.email == email, User.status == UserStatus.ACTIVE
         )
 
         try:

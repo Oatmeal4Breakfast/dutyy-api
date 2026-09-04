@@ -1,20 +1,32 @@
 import hashlib
 import secrets
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid7
 
+from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.db.base import Base
 from src.domain.exceptions import DomainValidationError
 
 
-@dataclass
-class PasswordSetToken:
-    user_id: UUID
-    token_hash: str
-    expires_at: datetime
-    created_date: datetime
-    used_at: datetime | None = None
-    id: UUID = field(default_factory=uuid7)
+class PasswordSetToken(Base):
+    __tablename__ = "password_token"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    created_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
     @classmethod
     def issue(cls, user_id: UUID, ttl: timedelta) -> tuple[str, "PasswordSetToken"]:

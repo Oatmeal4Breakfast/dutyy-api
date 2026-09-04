@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, cast
 from sqlalchemy import CursorResult, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import device_auth_code_table
 from src.domain.device_auth import DeviceCode, DeviceCodeStatus
 from src.logger import get_logger
 from src.repository.abstract_repo import Operation, RepoError, assert_managed
@@ -23,7 +22,7 @@ class DeviceAuthRepo:
 
     async def get_code_by_user_code(self, user_code: str) -> DeviceCode | None:
         stmt: Select[tuple[DeviceCode]] = select(DeviceCode).where(
-            device_auth_code_table.c.user_code == user_code
+            DeviceCode.user_code == user_code
         )
 
         try:
@@ -36,7 +35,7 @@ class DeviceAuthRepo:
 
     async def get_code_by_hash(self, hash: str) -> DeviceCode | None:
         stmt: Select[tuple[DeviceCode]] = select(DeviceCode).where(
-            device_auth_code_table.c.hashed_device_code == hash
+            DeviceCode.hashed_device_code == hash
         )
 
         try:
@@ -80,24 +79,13 @@ class DeviceAuthRepo:
             raise
 
     async def consume(self, hashed_device_code: str) -> DeviceCode | None:
-        """Deliberately a statement rather than load-then-mutate.
-
-        This is a race-safe compare-and-set: the APPROVED/expiry check lives in the
-        WHERE clause so two concurrent polls cannot both consume the code. Reading the
-        row and mutating it would reintroduce that race.
-
-        It is an ORM-enabled UPDATE (`update(DeviceCode)`, not `update(table)`) so that
-        `synchronize_session="fetch"` refreshes any instance of this row already in the
-        session. A Core UPDATE here would write behind the identity map and a later read
-        in the same session would hand back the stale pre-consume status.
-        """
         updates: dict[str, DeviceCodeStatus] = {"status": DeviceCodeStatus.CONSUMED}
         stmt: Update = (
             update(DeviceCode)
             .where(
-                device_auth_code_table.c.hashed_device_code == hashed_device_code,
-                device_auth_code_table.c.status == DeviceCodeStatus.APPROVED,
-                device_auth_code_table.c.expires_at > func.now(),
+                DeviceCode.hashed_device_code == hashed_device_code,
+                DeviceCode.status == DeviceCodeStatus.APPROVED,
+                DeviceCode.expires_at > func.now(),
             )
             .values(**updates)
             .returning(DeviceCode)
@@ -122,11 +110,11 @@ class DeviceAuthRepo:
 
     async def purge(self) -> int:
         stmt = (
-            delete(device_auth_code_table)
+            delete(DeviceCode.__table__)
             .where(
                 or_(
-                    device_auth_code_table.c.status == DeviceCodeStatus.CONSUMED,
-                    device_auth_code_table.c.expires_at < func.now(),
+                    DeviceCode.status == DeviceCodeStatus.CONSUMED,
+                    DeviceCode.expires_at < func.now(),
                 )
             )
             .execution_options(synchronize_session=False)

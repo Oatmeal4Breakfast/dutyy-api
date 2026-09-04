@@ -1,8 +1,12 @@
-from dataclasses import dataclass, field
+from dataclasses import field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
 from uuid import UUID, uuid7
 
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.db.base import Base
 from src.domain.events import DutyyCompleted
 from src.domain.exceptions import DomainValidationError
 
@@ -13,17 +17,32 @@ class DutyyStatus(StrEnum):
     COMPLETE = auto()
 
 
-@dataclass
-class Dutyy:
-    title: str
-    project_id: UUID
-    modified_date: datetime | None = None
-    completed_date: datetime | None = None
-    details: str | None = None
+class Dutyy(Base):
+    __tablename__ = "dutyys"
+
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    project_id: Mapped[UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    modified_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    completed_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    details: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     events: list = field(default_factory=list, init=False, repr=False)
-    created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
-    status: DutyyStatus = field(default=DutyyStatus.NEW)
-    id: UUID = field(default_factory=uuid7)
+    created_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default_factory=lambda: datetime.now(UTC),
+    )
+    status: Mapped[DutyyStatus] = mapped_column(
+        Enum(DutyyStatus, name="dutyystatus"),
+        nullable=False,
+        default=DutyyStatus.NEW,
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
     def __post_init__(self) -> None:
         norm_title = self.title.strip().lower()

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Sequence
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import password_set_tokens_table
 from src.domain.token import PasswordSetToken
 from src.logger import get_logger
 from src.repository.abstract_repo import Operation, RepoError, assert_managed
@@ -40,7 +39,7 @@ class PasswordSetTokenRepo:
 
     async def get_by_hash(self, token_hash: str) -> PasswordSetToken | None:
         stmt: Select[tuple[PasswordSetToken]] = select(PasswordSetToken).where(
-            password_set_tokens_table.c.token_hash == token_hash
+            PasswordSetToken.token_hash == token_hash
         )
 
         try:
@@ -70,9 +69,9 @@ class PasswordSetTokenRepo:
     async def get_active_by_user_id(self, user_id: UUID) -> list[PasswordSetToken]:
         stmt: Select[tuple[PasswordSetToken]] = (
             select(PasswordSetToken)
-            .where(password_set_tokens_table.c.user_id == user_id)
-            .where(password_set_tokens_table.c.used_at.is_(None))
-            .where(password_set_tokens_table.c.expires_at > func.now())
+            .where(PasswordSetToken.user_id == user_id)
+            .where(PasswordSetToken.used_at.is_(None))
+            .where(PasswordSetToken.expires_at > func.now())
         )
 
         try:

@@ -1,10 +1,14 @@
 import hashlib
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum, auto
 from uuid import UUID, uuid7
 
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.db.base import Base
 from src.domain.exceptions import DomainValidationError
 
 
@@ -23,16 +27,31 @@ class APIKeySummary:
     expires_at: datetime | None = None
 
 
-@dataclass
-class APIKey:
-    key_hash: str
-    name: str
-    user_id: UUID
-    status: APIKeyStatus = field(default=APIKeyStatus.ACTIVE)
-    last_used: datetime | None = None
-    expires_at: datetime | None = None
-    created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
-    id: UUID = field(default_factory=uuid7)
+class APIKey(Base):
+    __tablename__ = "api_keys"
+
+    key_hash: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[APIKeyStatus] = mapped_column(
+        Enum(APIKeyStatus, name="apikeystatus"),
+        nullable=False,
+        default=APIKeyStatus.ACTIVE,
+    )
+    last_used: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    created_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default_factory=lambda: datetime.now(UTC),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
     def __post_init__(self) -> None:
         norm_hash = self.key_hash.strip()
@@ -67,3 +86,12 @@ class APIKey:
 
     def __hash__(self):
         return hash(self.id)
+
+
+Index(
+    "uq_api_keys_active_name",
+    APIKey.user_id,
+    APIKey.name,
+    unique=True,
+    postgresql_where=(APIKey.status == APIKeyStatus.ACTIVE),
+)
