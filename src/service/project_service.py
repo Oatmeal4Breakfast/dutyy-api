@@ -12,20 +12,17 @@ from src.logger import get_logger
 if TYPE_CHECKING:
     from uuid import UUID
 
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-    from src.bus.bus import EventBus
 
 logger = get_logger(__name__)
 
 
-class ProjectNotFound(Exception):
+class ProjectNotFoundError(Exception):
     def __init__(self, id: UUID) -> None:
         self.id = id
         super().__init__(f"Project with id {self.id} not found")
 
 
-class DutyyNotFound(Exception):
+class DutyyNotFoundError(Exception):
     def __init__(self, id: UUID) -> None:
         self.id = id
         super().__init__(f"Dutyy with id {self.id} not found")
@@ -47,9 +44,7 @@ class EditProjectCommand:
 class ProjectService:
     def __init__(
         self,
-        uow_factory: Callable[
-            [async_sessionmaker[AsyncSession], EventBus], AbstractUnitOfWork
-        ],
+        uow_factory: Callable[[], AbstractUnitOfWork],
     ) -> None:
         self._uow_factory: Callable = uow_factory
 
@@ -79,7 +74,7 @@ class ProjectService:
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFound(project_id)
+                raise ProjectNotFoundError(project_id)
 
             project.publish()
 
@@ -104,7 +99,7 @@ class ProjectService:
                     event="project_not_found",
                     project_id=str(project_id),
                 )
-                raise ProjectNotFound(project_id)
+                raise ProjectNotFoundError(project_id)
 
             dutyy = Dutyy(title=dutyy_title, project_id=project_id, details=details)
 
@@ -125,7 +120,7 @@ class ProjectService:
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFound(project_id)
+                raise ProjectNotFoundError(project_id)
 
             project.delete_dutyy(dutyy_id)
             await uow.project.update(project)
@@ -141,7 +136,7 @@ class ProjectService:
 
             if dutyy is None:
                 logger.warning(event="dutyy_not_found", dutyy_id=str(dutyy_id))
-                raise DutyyNotFound(dutyy_id)
+                raise DutyyNotFoundError(dutyy_id)
 
             if (
                 updates.title is None
@@ -174,7 +169,7 @@ class ProjectService:
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFound(project_id)
+                raise ProjectNotFoundError(project_id)
 
             if updates.name is None and updates.status is None:
                 return project
@@ -198,7 +193,7 @@ class ProjectService:
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFound(project_id)
+                raise ProjectNotFoundError(project_id)
 
             project.unpublish()
 
@@ -215,7 +210,7 @@ class ProjectService:
 
             if project is None:
                 logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFound(project_id)
+                raise ProjectNotFoundError(project_id)
             return project
 
     async def list_projects(self, owner_id: UUID) -> list[Project]:

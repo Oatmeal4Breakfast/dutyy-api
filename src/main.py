@@ -29,6 +29,7 @@ from src.service.api_service import APIService
 from src.service.auth_service import AuthService
 from src.service.device_auth_service import DeviceAuthService
 from src.service.email_service import EmailService
+from src.service.project_service import DutyyNotFoundError, ProjectNotFoundError
 from src.service.user_service import UserNotFoundError, UserService
 
 if TYPE_CHECKING:
@@ -97,11 +98,11 @@ async def operation_error_handler(
     return JSONResponse(status_code=503, content={"detail": "service unavailable"})
 
 
-async def user_not_found_handler(
-    request: Request, exc: UserNotFoundError
+async def resource_not_found_handler(
+    request: Request, exc: UserNotFoundError | ProjectNotFoundError | DutyyNotFoundError
 ) -> JSONResponse:
     return JSONResponse(
-        status_code=404, content={"details": f"user {exc.user_id} not found"}
+        status_code=404, content={"details": f"user {exc.id} not found"}
     )
 
 
@@ -121,7 +122,9 @@ def create_app(lifespan=None) -> FastAPI:
     app.add_exception_handler(ProjectAlreadyExistsError, project_already_exist_handler)
     app.add_exception_handler(IntegrityError, integrity_error_handler)
     app.add_exception_handler(OperationalError, operation_error_handler)
-    app.add_exception_handler(UserNotFoundError, user_not_found_handler)
+    app.add_exception_handler(UserNotFoundError, resource_not_found_handler)
+    app.add_exception_handler(ProjectNotFoundError, resource_not_found_handler)
+    app.add_exception_handler(DutyyNotFoundError, resource_not_found_handler)
 
     app.include_router(user_router.router)
     app.include_router(auth_router.router)
