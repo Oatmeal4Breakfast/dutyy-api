@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import api_key_table
 from src.domain.api import APIKey, APIKeySummary
 from src.logger import get_logger
 from src.repository.abstract_repo import Operation, RepoError, assert_managed
@@ -25,13 +24,13 @@ class APIRepo:
 
     async def get_by_user_id(self, user_id: UUID) -> list[APIKeySummary]:
         stmt: Select[Any] = select(
-            api_key_table.c.id,
-            api_key_table.c.name,
-            api_key_table.c.status,
-            api_key_table.c.created_date,
-            api_key_table.c.last_used,
-            api_key_table.c.expires_at,
-        ).where(api_key_table.c.user_id == user_id)
+            APIKey.id,
+            APIKey.name,
+            APIKey.status,
+            APIKey.created_date,
+            APIKey.last_used,
+            APIKey.expires_at,
+        ).where(APIKey.user_id == user_id)
 
         try:
             result: Result[Any] = await self._session.execute(stmt)
@@ -76,9 +75,7 @@ class APIRepo:
             raise
 
     async def get_by_hash(self, hash: str) -> APIKey | None:
-        stmt: Select[tuple[APIKey]] = select(APIKey).where(
-            api_key_table.c.key_hash == hash
-        )
+        stmt: Select[tuple[APIKey]] = select(APIKey).where(APIKey.key_hash == hash)
 
         try:
             result: Result[tuple[APIKey]] = await self._session.execute(stmt)
@@ -89,7 +86,7 @@ class APIRepo:
         return result.scalars().one_or_none()
 
     async def get_by_id(self, key_id: UUID) -> APIKey | None:
-        stmt: Select[tuple[APIKey]] = select(APIKey).where(api_key_table.c.id == key_id)
+        stmt: Select[tuple[APIKey]] = select(APIKey).where(APIKey.id == key_id)
 
         try:
             result: Result[tuple[APIKey]] = await self._session.execute(stmt)

@@ -1,8 +1,12 @@
-from dataclasses import dataclass, field
+from dataclasses import field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
 from uuid import UUID, uuid7
 
+from sqlalchemy import DateTime, Enum, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from src.db.base import Base
 from src.domain.dutyy import Dutyy
 from src.domain.events import (
     DutyyAdded,
@@ -30,19 +34,43 @@ class ProjectStatus(StrEnum):
     ABANDONED = auto()
 
 
-@dataclass
-class Project:
-    name: str
-    owner_id: UUID
-    modified_date: datetime | None = None
-    completed_date: datetime | None = None
-    published_date: datetime | None = None
+class Project(Base):
+    __tablename__ = "projects"
+
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    owner_id: Mapped[UUID] = mapped_column(nullable=False)
+    modified_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    completed_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    published_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
     events: list = field(default_factory=list, init=False, repr=False)
-    status: ProjectStatus = field(default=ProjectStatus.NEW)
-    dutyys: list[Dutyy] = field(default_factory=list)
-    created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
-    publishing_status: PublishingStatus = field(default=PublishingStatus.DRAFT)
-    id: UUID = field(default_factory=uuid7)
+    status: Mapped[ProjectStatus] = mapped_column(
+        Enum(ProjectStatus, name="projectstatus"),
+        nullable=False,
+        default=ProjectStatus.NEW,
+    )
+    dutyys: Mapped[list[Dutyy]] = relationship(
+        default_factory=list,
+        lazy="raise",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    created_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default_factory=lambda: datetime.now(UTC),
+    )
+    publishing_status: Mapped[PublishingStatus] = mapped_column(
+        Enum(PublishingStatus, name="publishingstatus"),
+        nullable=False,
+        default=PublishingStatus.DRAFT,
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
     def __post_init__(self) -> None:
         norm_name = self.name.strip().lower()

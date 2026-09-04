@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.db.orm import dutyy_table, project_user_table, projects_table
+from src.db.orm import project_user_table
 from src.domain.dutyy import Dutyy
+from src.domain.project import Project
 from src.logger import get_logger
 from src.repository.abstract_repo import (
     AbstractRepository,
@@ -33,10 +34,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         offset_value = (page - 1) * page_size
 
         stmt: Select[tuple[Dutyy]] = (
-            select(Dutyy)
-            .order_by(dutyy_table.c.id)
-            .limit(page_size)
-            .offset(offset_value)
+            select(Dutyy).order_by(Dutyy.id).limit(page_size).offset(offset_value)
         )
 
         try:
@@ -96,7 +94,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
             raise
 
     async def get_by_id(self, dutyy_id: UUID) -> Dutyy | None:
-        stmt: Select[tuple[Dutyy]] = select(Dutyy).where(dutyy_table.c.id == dutyy_id)
+        stmt: Select[tuple[Dutyy]] = select(Dutyy).where(Dutyy.id == dutyy_id)
 
         try:
             result: Result[tuple[Dutyy]] = await self._session.execute(stmt)
@@ -116,9 +114,9 @@ class DutyRepo(AbstractRepository[Dutyy]):
     ) -> Dutyy | None:
         stmt: Select[tuple[Dutyy]] = (
             select(Dutyy)
-            .where(dutyy_table.c.id == dutyy_id)
-            .join(projects_table, projects_table.c.id == dutyy_table.c.project_id)
-            .where(projects_table.c.owner_id == owner_id)
+            .where(Dutyy.id == dutyy_id)
+            .join(Project, Project.id == Dutyy.project_id)
+            .where(Project.owner_id == owner_id)
         )
 
         try:
@@ -139,10 +137,10 @@ class DutyRepo(AbstractRepository[Dutyy]):
             select(Dutyy)
             .join(
                 project_user_table,
-                dutyy_table.c.project_id == project_user_table.c.project_id,
+                Dutyy.project_id == project_user_table.c.project_id,
             )
             .where(project_user_table.c.user_id == user_id)
-            .where(dutyy_table.c.title.ilike(f"%{dutyy_name}%"))
+            .where(Dutyy.title.ilike(f"%{dutyy_name}%"))
         )
 
         try:
@@ -157,9 +155,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
         return list(dutyys)
 
     async def get_by_project_id(self, project_id: UUID) -> list[Dutyy]:
-        stmt: Select[tuple[Dutyy]] = select(Dutyy).where(
-            dutyy_table.c.project_id == project_id
-        )
+        stmt: Select[tuple[Dutyy]] = select(Dutyy).where(Dutyy.project_id == project_id)
 
         try:
             results: Result[tuple[Dutyy]] = await self._session.execute(stmt)

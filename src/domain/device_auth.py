@@ -1,9 +1,13 @@
 import hashlib
 import secrets
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum, auto
 from uuid import UUID
+
+from sqlalchemy import DateTime, Enum, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from src.db.base import Base
 
 
 class DeviceCodeStatus(StrEnum):
@@ -33,15 +37,30 @@ def _default_key_name() -> str:
     return f"cli-{secrets.token_hex(3)}"
 
 
-@dataclass
-class DeviceCode:
-    hashed_device_code: str
-    user_code: str
-    status: DeviceCodeStatus
-    expires_at: datetime
-    key_name: str = field(default_factory=_default_key_name)
-    key_lifetime: KeyLifetime = KeyLifetime.THIRTY_DAYS
-    user_id: UUID | None = None
+class DeviceCode(Base):
+    __tablename__ = "device_auth_code"
+
+    hashed_device_code: Mapped[str] = mapped_column(String, primary_key=True)
+    user_code: Mapped[str] = mapped_column(
+        String, nullable=False, unique=True, index=True
+    )
+    status: Mapped[DeviceCodeStatus] = mapped_column(
+        Enum(DeviceCodeStatus, name="devicecodestatus"), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    key_name: Mapped[str] = mapped_column(
+        String, nullable=False, default_factory=_default_key_name
+    )
+    key_lifetime: Mapped[KeyLifetime] = mapped_column(
+        Enum(KeyLifetime, name="keylifetime"),
+        nullable=False,
+        default=KeyLifetime.THIRTY_DAYS,
+    )
+    user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, default=None
+    )
 
     @staticmethod
     def hash_device_code(code: str) -> str:

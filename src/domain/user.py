@@ -4,7 +4,11 @@ from enum import StrEnum, auto
 from uuid import UUID, uuid7
 
 from email_validator import EmailNotValidError, validate_email
+from sqlalchemy import DateTime, Enum, String
+from sqlalchemy.dialects.postgresql import CITEXT
+from sqlalchemy.orm import Mapped, mapped_column
 
+from src.db.base import Base
 from src.domain.events import UserCreated, UserPasswordReset, UserStatusChanged
 from src.domain.exceptions import DomainValidationError
 
@@ -34,18 +38,31 @@ class UserSummary:
     id: UUID
 
 
-@dataclass
-class User:
-    first_name: str
-    last_name: str
-    email: str
-    password_hash: str | None = None
-    last_login: datetime | None = None
-    modified_date: datetime | None = None
-    created_date: datetime = field(default_factory=lambda: datetime.now(UTC))
+class User(Base):
+    __tablename__ = "users"
+
+    first_name: Mapped[str] = mapped_column(String, nullable=False)
+    last_name: Mapped[str] = mapped_column(String, nullable=False)
+    email: Mapped[str] = mapped_column(CITEXT, nullable=False, unique=True)
+    password_hash: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+    last_login: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    modified_date: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    created_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default_factory=lambda: datetime.now(UTC),
+    )
     events: list = field(default_factory=list, init=False, repr=False)
-    status: UserStatus = field(default=UserStatus.ACTIVE)
-    id: UUID = field(default_factory=uuid7)
+    status: Mapped[UserStatus] = mapped_column(
+        Enum(UserStatus, name="userstatus"), nullable=False, default=UserStatus.ACTIVE
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
     @property
     def full_name(self) -> str:

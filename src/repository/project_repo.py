@@ -6,7 +6,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import selectinload
 
-from src.db.orm import PROJECT_DUTYYS, project_user_table, projects_table
+from src.db.orm import project_user_table
 from src.domain.exceptions import ProjectAlreadyExistsError
 from src.domain.project import Project
 from src.logger import get_logger
@@ -33,24 +33,13 @@ class ProjectRepo(AbstractRepository[Project]):
         self.seen: set[Project] = set()
 
     def _select(self) -> Select[tuple[Project]]:
-        """Every Project read loads the aggregate whole.
-
-        `Project.dutyys` is mapped `lazy="raise"`, so a Project loaded without its
-        collection detonates the first time a domain method touches it (`publish()`
-        checks `len(self.dutyys)`). Eager-loading uniformly leaves `lazy="raise"` as a
-        tripwire that never fires in normal operation. `selectinload` rather than a
-        joined eager load: no row multiplication, so no `.unique()` requirement.
-        """
-        return select(Project).options(selectinload(PROJECT_DUTYYS))
+        return select(Project).options(selectinload(Project.dutyys))
 
     async def get_all(self, page: int = 1, page_size: int = 100) -> list[Project]:
         offset_value: int = (page - 1) * page_size
 
         stmt: Select[tuple[Project]] = (
-            self._select()
-            .order_by(projects_table.c.id)
-            .limit(page_size)
-            .offset(offset_value)
+            self._select().order_by(Project.id).limit(page_size).offset(offset_value)
         )
 
         try:
@@ -123,7 +112,7 @@ class ProjectRepo(AbstractRepository[Project]):
 
     async def get_by_id(self, project_id: UUID, owner_id: UUID) -> Project | None:
         stmt: Select[tuple[Project]] = self._select().where(
-            projects_table.c.id == project_id, projects_table.c.owner_id == owner_id
+            Project.id == project_id, Project.owner_id == owner_id
         )
 
         try:
@@ -142,8 +131,8 @@ class ProjectRepo(AbstractRepository[Project]):
     async def search_by_name(self, project_name: str, owner_id: UUID) -> list[Project]:
         stmt: Select[tuple[Project]] = (
             self._select()
-            .where(projects_table.c.name.ilike(f"%{project_name}%"))
-            .where(projects_table.c.owner_id == owner_id)
+            .where(Project.name.ilike(f"%{project_name}%"))
+            .where(Project.owner_id == owner_id)
         )
 
         try:
@@ -159,7 +148,7 @@ class ProjectRepo(AbstractRepository[Project]):
 
     async def get_by_owner_id(self, owner_id: UUID) -> list[Project]:
         stmt: Select[tuple[Project]] = self._select().where(
-            projects_table.c.owner_id == owner_id
+            Project.owner_id == owner_id
         )
 
         try:
@@ -178,7 +167,7 @@ class ProjectRepo(AbstractRepository[Project]):
             self._select()
             .join(
                 project_user_table,
-                projects_table.c.id == project_user_table.c.project_id,
+                Project.id == project_user_table.c.project_id,
             )
             .where(project_user_table.c.user_id == user_id)
         )
