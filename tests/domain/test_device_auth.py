@@ -106,20 +106,3 @@ def test_is_expired_true_when_past() -> None:
 def test_is_expired_false_when_future() -> None:
     code = make_device_code(expires_at=datetime.now(UTC) + timedelta(minutes=5))
     assert code.is_expired() is False
-
-
-# --- to_dict ---
-
-
-def test_to_dict_keys_match_fields() -> None:
-    code = make_device_code(user_id=uuid7())
-    result = code.to_dict()
-    assert set(result.keys()) == {
-        "hashed_device_code",
-        "user_code",
-        "status",
-        "expires_at",
-        "key_name",
-        "key_lifetime",
-        "user_id",
-    }

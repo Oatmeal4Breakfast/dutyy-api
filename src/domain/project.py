@@ -1,7 +1,6 @@
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
-from typing import Any
 from uuid import UUID, uuid7
 
 from src.domain.dutyy import Dutyy
@@ -72,13 +71,6 @@ class Project:
     def _mark_abandoned(self) -> None:
         self.status = ProjectStatus.ABANDONED
         self._touch()
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            item.name: getattr(self, item.name)
-            for item in fields(self)
-            if item.name not in {"dutyys", "events"}
-        }
 
     def update_name(self, name: str) -> None:
         norm_name = name.strip().lower()

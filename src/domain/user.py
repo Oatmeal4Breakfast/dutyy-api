@@ -1,7 +1,6 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
-from typing import Any
 from uuid import UUID, uuid7
 
 from email_validator import EmailNotValidError, validate_email
@@ -86,11 +85,6 @@ class User:
             self.status,
             self.id,
         )
-
-    def to_dict(self) -> dict[str, Any]:
-        data = asdict(self)
-        data.pop("events", None)
-        return data
 
     def _touch(self) -> datetime:
         self.modified_date = datetime.now(UTC)

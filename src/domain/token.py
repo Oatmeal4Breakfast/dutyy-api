@@ -1,8 +1,7 @@
 import hashlib
 import secrets
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from uuid import UUID, uuid7
 
 from src.domain.exceptions import DomainValidationError
@@ -32,9 +31,6 @@ class PasswordSetToken:
     @staticmethod
     def hash_token(raw_token: str) -> str:
         return hashlib.sha256(raw_token.encode()).hexdigest()
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
 
     def is_expired(self, now: datetime | None = None) -> bool:
         now: datetime = now or datetime.now(UTC)

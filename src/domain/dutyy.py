@@ -1,7 +1,6 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum, auto
-from typing import Any
 from uuid import UUID, uuid7
 
 from src.domain.events import DutyyCompleted
@@ -37,11 +36,6 @@ class Dutyy:
         if isinstance(self.details, str):
             norm_details = self.details.strip()
             self.details = norm_details
-
-    def to_dict(self) -> dict[str, Any]:
-        data = asdict(self)
-        data.pop("events", None)
-        return data
 
     def _touch(self) -> None:
         self.modified_date = datetime.now(UTC)

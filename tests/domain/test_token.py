@@ -134,13 +134,3 @@ def test_consume_is_single_use() -> None:
     token.consume()
     with pytest.raises(DomainValidationError):
         token.consume()
-
-
-def test_to_dict_contains_expected_keys() -> None:
-    token = make_token()
-    data = token.to_dict()
-
-    assert data["user_id"] == _DEFAULT_USER_ID
-    assert data["token_hash"] == "hashed_token_abc123"
-    assert data["id"] == token.id
-    assert data["used_at"] is None

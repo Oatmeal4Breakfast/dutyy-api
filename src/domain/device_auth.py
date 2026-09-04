@@ -1,9 +1,8 @@
 import hashlib
 import secrets
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum, auto
-from typing import TypedDict, cast
 from uuid import UUID
 
 
@@ -32,16 +31,6 @@ CHAR_SET = "BCDFGHJKLMNPQRSTVWXYZ23456789"
 
 def _default_key_name() -> str:
     return f"cli-{secrets.token_hex(3)}"
-
-
-class DeviceCodeDict(TypedDict):
-    hashed_device_code: str
-    user_code: str | None
-    status: DeviceCodeStatus
-    expires_at: datetime
-    key_name: str
-    key_lifetime: KeyLifetime
-    user_id: UUID | None
 
 
 @dataclass
@@ -82,9 +71,6 @@ class DeviceCode:
             key_name=key_name if key_name is not None else _default_key_name(),
             key_lifetime=key_lifetime,
         )
-
-    def to_dict(self) -> DeviceCodeDict:
-        return cast(DeviceCodeDict, asdict(self))
 
     def is_expired(self) -> bool:
         return datetime.now(UTC) > self.expires_at
