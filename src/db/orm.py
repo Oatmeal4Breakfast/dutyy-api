@@ -5,12 +5,21 @@ from src.domain.api import APIKey
 from src.domain.device_auth import DeviceCode
 from src.domain.dutyy import Dutyy
 from src.domain.project import Project
+from src.domain.session import WebSession
 from src.domain.token import PasswordSetToken
 from src.domain.user import User
 
 metadata = Base.metadata
 
-MAPPED_ENTITIES = (APIKey, DeviceCode, Dutyy, PasswordSetToken, Project, User)
+MAPPED_ENTITIES = (
+    APIKey,
+    DeviceCode,
+    Dutyy,
+    PasswordSetToken,
+    Project,
+    User,
+    WebSession,
+)
 
 project_user_table = Table(
     "project_user",
