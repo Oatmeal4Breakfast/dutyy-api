@@ -27,13 +27,14 @@ class WebSession(Base):
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    revoked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, default=None
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
     )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+
     id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
     def __post_init__(self) -> None:
