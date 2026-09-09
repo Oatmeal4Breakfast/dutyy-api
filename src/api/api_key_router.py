@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from src.api.deps import get_api_service, get_current_user
 from src.domain.api import APIKeyStatus, APIKeySummary
-from src.domain.user import User
+from src.domain.user import User, UserSummary
 from src.service.api_service import APIService
 
 
@@ -48,14 +48,15 @@ router = APIRouter(
     tags=["auth", "api-keys"],
 )
 
-_APIService = Annotated[APIService, Depends(get_api_service)]
+APIServiceDep = Annotated[APIService, Depends(get_api_service)]
+CurrentUser = Annotated[UserSummary, Depends(get_current_user)]
 
 
 @router.post(path="", status_code=201)
 async def issue_new_key(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: CurrentUser,
     request: IssueKeyRequest,
-    service: _APIService,
+    service: APIServiceDep,
 ):
     raw_key: str = await service.issue_new_key(
         user_id=current_user.id,
@@ -66,9 +67,7 @@ async def issue_new_key(
 
 
 @router.get(path="", response_model=list[APIKeyResponse])
-async def get_api_keys(
-    current_user: Annotated[User, Depends(get_current_user)], service: _APIService
-):
+async def get_api_keys(current_user: CurrentUser, service: APIServiceDep):
     keys: list[APIKeySummary] = await service.get_keys_by_user_id(
         user_id=current_user.id
     )
@@ -77,8 +76,8 @@ async def get_api_keys(
 
 @router.delete(path="/{key_id}", status_code=204)
 async def delete_key(
-    current_user: Annotated[User, Depends(get_current_user)],
-    service: _APIService,
+    current_user: CurrentUser,
+    service: APIServiceDep,
     key_id: UUID,
 ):
     await service.revoke(user_id=current_user.id, key_id=key_id)
