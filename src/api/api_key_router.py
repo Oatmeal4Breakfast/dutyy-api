@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from src.api.deps import get_api_service, get_current_user
 from src.domain.api import APIKeyStatus, APIKeySummary
-from src.domain.user import User, UserSummary
+from src.domain.user import UserSummary
 from src.service.api_service import APIService
 
 

@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_user_service, get_current_user
+from src.api.deps import get_current_user, get_user_service
 from src.domain.user import UserStatus, UserSummary, UserUpdateFields
 from src.service.user_service import UserService
 
