@@ -65,9 +65,15 @@ class WebSession(Base):
         return hashlib.sha256(raw_token.encode()).hexdigest()
 
     def touch(self, idle_expires: timedelta) -> None:
-        if not self.is_active():
-            raise DomainValidationError("WebSession", [f"token {self.id} is inactive"])
         now: datetime = datetime.now(UTC)
+        if not self.is_active(now):
+            raise DomainValidationError("WebSession", [f"token {self.id} is inactive"])
+
+        throttle: timedelta = now - self.last_seen_at
+
+        if throttle < timedelta(minutes=5):
+            return
+
         self.last_seen_at = now
         self.idle_expires_at = now + idle_expires
 
