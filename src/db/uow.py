@@ -13,6 +13,7 @@ from src.repository.health_repo import HealthRepo
 from src.repository.project_repo import ProjectRepo
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
+from src.repository.web_session_repo import WebSessionRepo
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -31,6 +32,7 @@ class AbstractUnitOfWork(ABC):
     health: HealthRepo
     token: PasswordSetTokenRepo
     device_auth: DeviceAuthRepo
+    web_session: WebSessionRepo
     _session: AsyncSession
 
     @abstractmethod
@@ -78,6 +80,7 @@ class UnitOfWork(AbstractUnitOfWork):
         self.health = HealthRepo(self._session)
         self.token = PasswordSetTokenRepo(self._session)
         self.device_auth = DeviceAuthRepo(self._session)
+        self.web_session = WebSessionRepo(self._session)
         return self
 
     async def __aexit__(self, exc_type, *_) -> None:

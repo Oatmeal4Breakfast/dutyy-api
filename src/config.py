@@ -4,7 +4,7 @@ from enum import StrEnum, auto
 from functools import lru_cache
 from urllib.parse import quote_plus
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import AnyHttpUrl, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -73,6 +73,27 @@ class DeviceAuthConfig(BaseSettings):
     device_auth_interval: int = Field(default=5)
 
 
+class WebSessionConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    cookie_name: str = Field(default="__Host-dutyy-session")
+    idle_ttl: timedelta = Field(default_factory=lambda: timedelta(minutes=30))
+    absolute_ttl: timedelta = Field(default_factory=lambda: timedelta(days=7))
+    touch_interval: timedelta = Field(default_factory=lambda: timedelta(minutes=5))
+    secure: bool = Field(default=True)
+
+    @model_validator(mode="after")
+    def _host_prefix_requires_secure(self) -> "WebSessionConfig":
+        if self.cookie_name.startswith("__Host-") and not self.secure:
+            raise ValueError("cookies with the __Host- prefix require secure=True")
+        return self
+
+
 @lru_cache
 def get_config() -> Config:
     return Config()
@@ -91,3 +112,8 @@ def get_email_service_config() -> EmailServiceConfig:
 @lru_cache
 def get_device_auth_config() -> DeviceAuthConfig:
     return DeviceAuthConfig()
+
+
+@lru_cache
+def get_web_session_config() -> WebSessionConfig:
+    return WebSessionConfig()
