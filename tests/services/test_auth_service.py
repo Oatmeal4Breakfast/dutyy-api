@@ -12,6 +12,7 @@ from src.domain.token import PasswordSetToken
 from src.domain.user import User, UserStatus
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
+from src.service.auth_service import BrowserLogin
 from tests.conftest import make_auth_service
 
 _hasher = PasswordHash.recommended()
@@ -120,12 +121,12 @@ class TestAuthService:
         await UserRepo(session).update(user)
         auth_service = make_auth_service(session, event_bus)
 
-        token: str | None = await auth_service.login(
+        login: BrowserLogin | None = await auth_service.login(
             user_email=user.email, password="correct-horse"
         )
-        assert token is not None
+        assert login is not None
 
-        current: User | None = await auth_service.get_current_user(token)
+        current: User | None = await auth_service.get_current_user(login)
         assert current is not None
         assert current.id == user.id
 
@@ -137,15 +138,15 @@ class TestAuthService:
 
         auth_service = make_auth_service(session, event_bus)
 
-        token: str | None = await auth_service.login(
+        login: BrowserLogin | None = await auth_service.login(
             user_email=user.email, password="correct-horse"
         )
-        assert token is not None
+        assert login is not None
 
         user.update_status(status=UserStatus.BLOCKED)
         await UserRepo(session).update(user)
 
-        result: User | None = await auth_service.get_current_user(token)
+        result: User | None = await auth_service.get_current_user(login)
 
         assert result is None
 
@@ -156,11 +157,11 @@ class TestAuthService:
 
         auth_service = make_auth_service(session, event_bus)
 
-        token: str | None = await auth_service.login(
+        login: BrowserLogin | None = await auth_service.login(
             user_email=user.email, password="correct-horse"
         )
 
-        assert token is None
+        assert login is None
 
     async def test_authenticate_user_unknown_email_returns_none(
         self, session, event_bus
