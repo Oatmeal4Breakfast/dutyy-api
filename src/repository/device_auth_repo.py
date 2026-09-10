@@ -110,7 +110,7 @@ class DeviceAuthRepo:
 
     async def purge(self) -> int:
         stmt = (
-            delete(DeviceCode.__table__)
+            delete(DeviceCode)
             .where(
                 or_(
                     DeviceCode.status == DeviceCodeStatus.CONSUMED,

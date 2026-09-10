@@ -23,6 +23,7 @@ from src.repository.health_repo import HealthRepo
 from src.repository.project_repo import ProjectRepo
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
+from src.repository.web_session_repo import WebSessionRepo
 from src.service.api_service import APIService
 from src.service.auth_service import AuthService
 from src.service.device_auth_service import DeviceAuthService
@@ -46,6 +47,7 @@ class FakeUnitOfWork(AbstractUnitOfWork):
         self.health = HealthRepo(self._session)
         self.token = PasswordSetTokenRepo(self._session)
         self.device_auth = DeviceAuthRepo(self._session)
+        self.web_session = WebSessionRepo(self._session)
         return self
 
     async def __aexit__(self, exc_type, *_) -> None:
