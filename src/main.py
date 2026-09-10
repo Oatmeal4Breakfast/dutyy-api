@@ -16,6 +16,7 @@ from src.config import (
     get_config,
     get_device_auth_config,
     get_email_service_config,
+    get_web_session_config,
 )
 from src.db.db import create_engine_and_session
 from src.db.uow import UnitOfWork
@@ -37,7 +38,12 @@ from src.service.user_service import UserNotFoundError, UserService
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from src.config import AuthServiceConfig, Config, EmailServiceConfig
+    from src.config import (
+        AuthServiceConfig,
+        Config,
+        EmailServiceConfig,
+        WebSessionConfig,
+    )
 
 
 async def lifespan(app: FastAPI):
@@ -45,14 +51,17 @@ async def lifespan(app: FastAPI):
     config_logger(config)
     auth_config: AuthServiceConfig = get_auth_service_config()
     email_config: EmailServiceConfig = get_email_service_config()
+    web_session_config: WebSessionConfig = get_web_session_config()
     engine, session_factory = create_engine_and_session(config)
     bus = EventBus()
     uow_factory: partial[UnitOfWork] = partial(UnitOfWork, session_factory, bus)
     app.state.session_factory: async_sessionmaker[AsyncSession] = session_factory
+    app.state.web_session_config = web_session_config
     app.state.event_bus: EventBus = bus
     app.state.auth_service = AuthService(
         uow_factory=uow_factory,
         auth_service_config=auth_config,
+        web_session_config=web_session_config,
     )
     app.state.device_auth_service = DeviceAuthService(
         config=get_device_auth_config(), uow_factory=uow_factory
