@@ -75,3 +75,41 @@ def test_touch_fails_on_inactive_session() -> None:
 
     with pytest.raises(DomainValidationError):
         session.touch(policy)
+
+
+def test_touch_within_throttle_idempotent() -> None:
+    session = make_web_session()
+
+    last_touch = session.last_seen_at
+
+    policy = SessionPolicy(
+        idle_ttl=timedelta(minutes=30),
+        absolute_ttl=timedelta(days=7),
+        touch_interval=timedelta(minutes=5),
+    )
+    now = datetime.now(UTC) + timedelta(minutes=4, seconds=55)
+    session.touch(policy, now=now)
+
+    assert session.last_seen_at == last_touch
+
+
+def test_touch_cannot_exceed_absolute() -> None:
+    now_base = datetime.now(UTC)
+    session = make_web_session(
+        created_at=now_base,
+        last_seen_at=now_base,
+        idle_expires_at=now_base + timedelta(minutes=40),
+        absolute_expires_at=now_base + timedelta(minutes=50),
+    )
+    policy = SessionPolicy(
+        idle_ttl=timedelta(minutes=30),
+        absolute_ttl=timedelta(days=7),
+        touch_interval=timedelta(minutes=5),
+    )
+
+    old_idle = session.idle_expires_at
+    touch_now = now_base + timedelta(minutes=25)
+    session.touch(policy=policy, now=touch_now)
+
+    assert old_idle < session.idle_expires_at
+    assert session.absolute_expires_at == session.idle_expires_at
