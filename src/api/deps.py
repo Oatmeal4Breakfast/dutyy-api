@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio.session import AsyncSession, async_sessionmaker
 
 from src.bus.bus import EventBus
+from src.config import WebSessionConfig
 from src.db.uow import UnitOfWork
 from src.domain.api import APIKey
 from src.domain.user import User, UserSummary
@@ -40,6 +41,10 @@ def get_user_service(request: Request) -> UserService:
 
 def get_api_service(request: Request) -> APIService:
     return request.app.state.api_service
+
+
+def get_web_session_config(request: Request) -> WebSessionConfig:
+    return request.app.state.web_session_config
 
 
 def get_uow(

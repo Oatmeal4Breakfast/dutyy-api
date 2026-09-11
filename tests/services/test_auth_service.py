@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 from uuid import uuid7
 
@@ -8,10 +8,13 @@ from pwdlib import PasswordHash
 
 from src.domain.events import PasswordTokenCreated, UserCreated
 from src.domain.exceptions import DomainValidationError
+from src.domain.session import WebSession
 from src.domain.token import PasswordSetToken
-from src.domain.user import User, UserStatus
+from src.domain.user import UserStatus
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
+from src.repository.web_session_repo import WebSessionRepo
+from src.service.auth_service import BrowserLogin
 from tests.conftest import make_auth_service
 
 _hasher = PasswordHash.recommended()
@@ -115,39 +118,149 @@ class TestAuthService:
 
         assert result is None
 
-    async def test_login_token_roundtrip(self, session, event_bus, user):
+    async def test_login_creates_persisted_session(
+        self, session, event_bus, user, db_roundtrip
+    ):
         user.update_password_hash(_hasher.hash("correct-horse"))
         await UserRepo(session).update(user)
         auth_service = make_auth_service(session, event_bus)
 
-        token: str | None = await auth_service.login(
+        login: BrowserLogin | None = await auth_service.login(
             user_email=user.email, password="correct-horse"
         )
-        assert token is not None
 
-        current: User | None = await auth_service.get_current_user(token)
-        assert current is not None
-        assert current.id == user.id
+        assert login is not None
+        assert login.raw_token
+        assert login.user_summary.id == user.id
+        assert login.user_summary.email == user.email
 
-    async def test_get_current_user_rejects_user_blocked_after_login(
+        await db_roundtrip()
+        persisted = await WebSessionRepo(session).get_by_token_hash(
+            WebSession.hash_token(login.raw_token)
+        )
+        assert persisted is not None
+        assert persisted.user_id == user.id
+        assert persisted.is_active()
+
+    async def test_login_then_session_restore(self, session, event_bus, user):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login: BrowserLogin | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+
+        state = await auth_service.get_session_user(login.raw_token)
+
+        assert state is not None
+        assert state.user_summary.id == user.id
+        assert state.idle_expires_at == login.session.idle_expires_at
+        assert state.absolute_expires_at == login.session.absolute_expires_at
+
+    async def test_get_session_user_unknown_token_returns_none(
+        self, session, event_bus
+    ):
+        auth_service = make_auth_service(session, event_bus)
+
+        assert await auth_service.get_session_user("not-a-real-token") is None
+
+    async def test_get_session_user_revoked_returns_none(
         self, session, event_bus, user
     ):
         user.update_password_hash(_hasher.hash("correct-horse"))
         await UserRepo(session).update(user)
-
         auth_service = make_auth_service(session, event_bus)
 
-        token: str | None = await auth_service.login(
+        login: BrowserLogin | None = await auth_service.login(
             user_email=user.email, password="correct-horse"
         )
-        assert token is not None
+        assert login is not None
+
+        await WebSessionRepo(session).revoke(
+            user.id, WebSession.hash_token(login.raw_token)
+        )
+
+        assert await auth_service.get_session_user(login.raw_token) is None
+
+    async def test_get_session_user_idle_expired_returns_none(
+        self, session, event_bus, user
+    ):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login: BrowserLogin | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+
+        stored = await WebSessionRepo(session).get_by_token_hash(
+            WebSession.hash_token(login.raw_token)
+        )
+        assert stored is not None
+        stored.idle_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        await WebSessionRepo(session).update(stored)
+
+        assert await auth_service.get_session_user(login.raw_token) is None
+
+    async def test_get_session_user_rejects_blocked_user(
+        self, session, event_bus, user
+    ):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login: BrowserLogin | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
 
         user.update_status(status=UserStatus.BLOCKED)
         await UserRepo(session).update(user)
 
-        result: User | None = await auth_service.get_current_user(token)
+        assert await auth_service.get_session_user(login.raw_token) is None
 
-        assert result is None
+    async def test_logout_revokes_session(self, session, event_bus, user, db_roundtrip):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login: BrowserLogin | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+
+        await auth_service.logout(login.raw_token)
+
+        await db_roundtrip()
+        stored = await WebSessionRepo(session).get_by_token_hash(
+            WebSession.hash_token(login.raw_token)
+        )
+        assert stored is not None
+        assert stored.revoked_at is not None
+        assert await auth_service.get_session_user(login.raw_token) is None
+
+    async def test_logout_unknown_token_is_noop(self, session, event_bus):
+        auth_service = make_auth_service(session, event_bus)
+
+        await auth_service.logout("does-not-exist")
+
+    async def test_logout_twice_is_idempotent(self, session, event_bus, user):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login: BrowserLogin | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+
+        await auth_service.logout(login.raw_token)
+        await auth_service.logout(login.raw_token)
+
+        assert await auth_service.get_session_user(login.raw_token) is None
 
     async def test_login_blocked_user_returns_none(self, session, event_bus, user):
         user.update_password_hash(_hasher.hash("correct-horse"))
@@ -156,11 +269,11 @@ class TestAuthService:
 
         auth_service = make_auth_service(session, event_bus)
 
-        token: str | None = await auth_service.login(
+        login: BrowserLogin | None = await auth_service.login(
             user_email=user.email, password="correct-horse"
         )
 
-        assert token is None
+        assert login is None
 
     async def test_authenticate_user_unknown_email_returns_none(
         self, session, event_bus

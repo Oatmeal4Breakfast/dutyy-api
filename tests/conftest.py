@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from src.bus.bus import EventBus
-from src.config import AuthServiceConfig, DeviceAuthConfig
+from src.config import AuthServiceConfig, DeviceAuthConfig, WebSessionConfig
 from src.db.orm import metadata
 from src.db.uow import AbstractUnitOfWork
 from src.domain.api import APIKey
@@ -95,9 +95,13 @@ def make_auth_service(session, event_bus) -> AuthService:
         token_ttl=timedelta(minutes=30),
         secret="test-secret-at-least-32-bytes-long",
     )
+
+    web_session_config = WebSessionConfig()
+
     return AuthService(
         uow_factory=partial(FakeUnitOfWork, session, event_bus),
         auth_service_config=config,
+        web_session_config=web_session_config,
     )
 
 

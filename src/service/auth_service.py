@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -11,7 +12,7 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 
-from src.config import AuthServiceConfig
+from src.config import AuthServiceConfig, WebSessionConfig
 from src.db.uow import AbstractUnitOfWork
 from src.domain.events import (
     PasswordResetRequested,
@@ -19,8 +20,9 @@ from src.domain.events import (
     UserCreated,
 )
 from src.domain.exceptions import DomainValidationError
+from src.domain.session import SessionPolicy, WebSession
 from src.domain.token import PasswordSetToken
-from src.domain.user import User, UserStatus
+from src.domain.user import User, UserStatus, UserSummary
 from src.logger import get_logger
 
 if TYPE_CHECKING:
@@ -29,6 +31,20 @@ if TYPE_CHECKING:
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class BrowserLogin:
+    raw_token: str
+    session: WebSession
+    user_summary: UserSummary
+
+
+@dataclass(frozen=True)
+class SessionState:
+    user_summary: UserSummary
+    idle_expires_at: datetime
+    absolute_expires_at: datetime
 
 
 class AuthenticationFailed(Exception):
@@ -44,8 +60,9 @@ class AuthService:
             [async_sessionmaker[AsyncSession], EventBus], AbstractUnitOfWork
         ],
         auth_service_config: AuthServiceConfig,
+        web_session_config: WebSessionConfig,
     ) -> None:
-        self._uow_factory: Callable = uow_factory
+        self._uow_factory: Callable[[], AbstractUnitOfWork] = uow_factory
         self._hasher: PasswordHash = PasswordHash.recommended()
         self.jwt_ttl: timedelta = auth_service_config.jwt_ttl
         self.secret: str = auth_service_config.secret
@@ -53,6 +70,11 @@ class AuthService:
         self.token_ttl: timedelta = auth_service_config.token_ttl
         self.fake_password: str = auth_service_config.fake_password
         self.fake_password_hash: str = self._hasher.hash(self.fake_password)
+        self.policy: SessionPolicy = SessionPolicy(
+            idle_ttl=web_session_config.idle_ttl,
+            absolute_ttl=web_session_config.absolute_ttl,
+            touch_interval=web_session_config.touch_interval,
+        )
 
     async def set_password(self, raw_token: str, new_password: str) -> None:
         token_hash: str = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -189,7 +211,7 @@ class AuthService:
         )
         return encoded_jwt
 
-    async def login(self, user_email: str, password: str) -> str | None:
+    async def login(self, user_email: str, password: str) -> BrowserLogin | None:
         user: User | None = await self._authenticate_user(
             user_email=user_email, password=password
         )
@@ -197,10 +219,50 @@ class AuthService:
         if user is None:
             return None
 
-        jwt: str = self._create_access_token(
-            payload={"sub": str(user.id)}, expires_delta=self.jwt_ttl
+        raw, session = WebSession.issue(user_id=user.id, policy=self.policy)
+        async with self._uow_factory() as uow:
+            await uow.web_session.add(session)
+            await uow.commit()
+
+        return BrowserLogin(raw, session, user_summary=user.to_summary())
+
+    async def logout(self, raw_token: str) -> None:
+        token_hash: str = WebSession.hash_token(raw_token)
+        async with self._uow_factory() as uow:
+            session: WebSession | None = await uow.web_session.get_by_token_hash(
+                token_hash=token_hash
+            )
+
+            if session is None or not session.is_active():
+                return
+
+            await uow.web_session.revoke(
+                user_id=session.user_id, token_hash=session.token_hash
+            )
+
+            await uow.commit()
+
+            return
+
+    async def get_session_user(self, raw_token: str) -> SessionState | None:
+        token_hash: str = WebSession.hash_token(raw_token)
+        async with self._uow_factory() as uow:
+            session: WebSession | None = await uow.web_session.get_by_token_hash(
+                token_hash=token_hash
+            )
+            if session is None or not session.is_active():
+                return None
+
+            user: User | None = await uow.user.get_by_id(user_id=session.user_id)
+
+            if user is None or user.status != UserStatus.ACTIVE:
+                return None
+
+        return SessionState(
+            user_summary=user.to_summary(),
+            idle_expires_at=session.idle_expires_at,
+            absolute_expires_at=session.absolute_expires_at,
         )
-        return jwt
 
     def _subject_from_token(self, token: str) -> UUID | None:
         try:
