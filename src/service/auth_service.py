@@ -226,6 +226,24 @@ class AuthService:
 
         return BrowserLogin(raw, session, user_summary=user.to_summary())
 
+    async def logout(self, raw_token: str) -> None:
+        token_hash: str = WebSession.hash_token(raw_token)
+        async with self._uow_factory() as uow:
+            session: WebSession | None = await uow.web_session.get_by_token_hash(
+                token_hash=token_hash
+            )
+
+            if session is None or not session.is_active():
+                return
+
+            await uow.web_session.revoke(
+                user_id=session.user_id, token_hash=session.token_hash
+            )
+
+            await uow.commit()
+
+            return
+
     async def get_session_user(self, raw_token: str) -> SessionState | None:
         token_hash: str = WebSession.hash_token(raw_token)
         async with self._uow_factory() as uow:

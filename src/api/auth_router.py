@@ -137,6 +137,25 @@ async def login(
     return LoginResponse(user_summary=login.user_summary)
 
 
+@router.post(path="/logout", status_code=200)
+async def logout(
+    request: Request,
+    response: Response,
+    service: AuthServiceDep,
+    config: WebSessionConfigDep,
+):
+    cookie: str | None = request.cookies.get(config.cookie_name)
+
+    if cookie is None:
+        raise session_exception
+
+    await service.logout(raw_token=cookie)
+
+    response.delete_cookie(key=config.cookie_name, path="/")
+    response.headers["Cache-Control"] = "no-store"
+    return {"status": "Successful"}
+
+
 @router.get(path="/session", response_model=SessionStateResponse)
 async def get_user_session(
     request: Request,
