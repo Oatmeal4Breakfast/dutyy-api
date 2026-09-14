@@ -5,6 +5,7 @@ import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum, auto
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -31,6 +32,18 @@ if TYPE_CHECKING:
     from src.bus.bus import EventBus
 
 logger = get_logger(__name__)
+
+
+class CredentialMethod(StrEnum):
+    API = auto()
+    SESSION = auto()
+
+
+@dataclass(frozen=True)
+class AuthContext:
+    user: UserSummary
+    method: CredentialMethod
+    credential_id: UUID
 
 
 @dataclass(frozen=True)

@@ -2,21 +2,19 @@ from functools import partial
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio.session import AsyncSession, async_sessionmaker
 
+from service.auth_service import CredentialMethod
 from src.bus.bus import EventBus
 from src.config import WebSessionConfig
 from src.db.uow import UnitOfWork
 from src.domain.api import APIKey
-from src.domain.user import User, UserSummary
+from src.domain.user import UserSummary
 from src.service.api_service import APIService
-from src.service.auth_service import AuthService
+from src.service.auth_service import AuthContext, AuthService, SessionState
 from src.service.device_auth_service import DeviceAuthService
 from src.service.project_service import ProjectService
 from src.service.user_service import UserService
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/dutyy/api/v1/auth/login")
 
 
 def get_event_bus(request: Request) -> EventBus:
@@ -65,20 +63,24 @@ def get_project_service(
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    request: Request,
+    config: Annotated[WebSessionConfig, Depends(get_web_session_config)],
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> UserSummary:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
     )
 
-    current_user: User | None = await service.get_current_user(token)
-    if current_user is None:
+    token: str | None = request.cookies.get(config.cookie_name)
+    if token is None:
         raise credentials_exception
 
-    return current_user.to_summary()
+    session_state: SessionState | None = await service.get_session_user(token)
+    if session_state is None:
+        raise credentials_exception
+
+    return session_state.user_summary
 
 
 async def get_api_key(
@@ -106,3 +108,46 @@ async def get_api_key_user(
     service: Annotated[UserService, Depends(get_user_service)],
 ) -> UserSummary:
     return await service.get_user_by_id(user_id=key.user_id)
+
+
+async def get_auth_context(
+    request: Request,
+    config: Annotated[WebSessionConfig, Depends(get_web_session_config)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    api_service: Annotated[APIService, Depends(get_api_service)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> AuthContext:
+    cookie: str | None = request.cookies.get(config.cookie_name)
+    token: str | None = request.headers.get("X-API-Key")
+
+    if cookie is not None and token is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate auth method",
+        )
+
+    if token is not None:
+        api_key: APIKey | None = await api_service.verify(token)
+
+        if api_key is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key"
+            )
+        return AuthContext(
+            user=await user_service.get_user_by_id(user_id=api_key.user_id),
+            method=CredentialMethod.API,
+            credential_id=api_key.id,
+        )
+
+    if cookie is not None:
+        session_state: SessionState | None = await auth_service.get_session_user(cookie)
+        if session_state is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid session"
+            )
+
+        return AuthContext(
+            user=session_state.user_summary,
+            method=CredentialMethod.SESSION,
+            credential_id=session_state.id,
+        )
