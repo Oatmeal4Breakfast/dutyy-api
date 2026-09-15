@@ -58,6 +58,7 @@ class SessionState:
     user_summary: UserSummary
     idle_expires_at: datetime
     absolute_expires_at: datetime
+    session_id: UUID
 
 
 class AuthenticationFailed(Exception):
@@ -275,6 +276,7 @@ class AuthService:
             user_summary=user.to_summary(),
             idle_expires_at=session.idle_expires_at,
             absolute_expires_at=session.absolute_expires_at,
+            session_id=session.id,
         )
 
     def _subject_from_token(self, token: str) -> UUID | None:
