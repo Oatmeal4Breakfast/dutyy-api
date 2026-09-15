@@ -6,12 +6,13 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.api.deps import get_current_user, get_project_service
+from src.config import WebSessionConfig
 from src.domain.dutyy import DutyyStatus
 from src.domain.project import ProjectStatus, PublishingStatus
 from src.main import create_app
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
-from tests.conftest import make_project_service, make_user
+from tests.conftest import make_auth_service, make_project_service, make_user
 
 
 @pytest.fixture
@@ -20,9 +21,13 @@ def project_service(session, event_bus):
 
 
 @pytest.fixture
-def app(project_service) -> Iterator[FastAPI]:
+def app(project_service, session, event_bus) -> Iterator[FastAPI]:
     app = create_app()
     app.dependency_overrides[get_project_service] = lambda: project_service
+    app.state.auth_service = make_auth_service(session, event_bus)
+    app.state.web_session_config = WebSessionConfig(
+        cookie_name="dutyy-test-session", secure=False
+    )
     yield app
     app.dependency_overrides.clear()
 

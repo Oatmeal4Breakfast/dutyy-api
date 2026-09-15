@@ -8,7 +8,7 @@ from src.bus.bus import EventBus
 from src.config import WebSessionConfig
 from src.db.uow import UnitOfWork
 from src.domain.api import APIKey
-from src.domain.user import UserSummary
+from src.domain.user import UserStatus, UserSummary
 from src.service.api_service import APIService
 from src.service.auth_service import (
     AuthContext,
@@ -18,7 +18,7 @@ from src.service.auth_service import (
 )
 from src.service.device_auth_service import DeviceAuthService
 from src.service.project_service import ProjectService
-from src.service.user_service import UserService
+from src.service.user_service import UserNotFoundError, UserService
 
 
 def get_event_bus(request: Request) -> EventBus:
@@ -152,8 +152,14 @@ async def get_auth_context(
     if (api_key is not None) == (session is not None):
         raise _unauthorized()
     if api_key is not None:
+        try:
+            key_user = await user_service.get_user_by_id(api_key.user_id)
+        except UserNotFoundError:
+            raise _unauthorized()
+        if key_user.status != UserStatus.ACTIVE:
+            raise _unauthorized()
         return AuthContext(
-            user=await user_service.get_user_by_id(api_key.user_id),
+            user=key_user,
             method=CredentialMethod.API,
             credential_id=api_key.id,
         )

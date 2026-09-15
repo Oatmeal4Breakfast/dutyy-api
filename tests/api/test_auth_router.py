@@ -1,14 +1,14 @@
 from typing import Iterator
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from httpx import ASGITransport, AsyncClient
 from pwdlib import PasswordHash
 
 from src.api.deps import (
     get_api_service,
+    get_auth_context,
     get_auth_service,
-    get_current_user,
     get_device_auth_service,
     get_web_session_config,
 )
@@ -17,6 +17,7 @@ from src.domain.device_auth import DeviceCode, DeviceCodeStatus
 from src.main import create_app
 from src.repository.device_auth_repo import DeviceAuthRepo
 from src.repository.user_repo import UserRepo
+from src.service.auth_service import AuthContext, CredentialMethod
 from tests.conftest import (
     make_api_service,
     make_auth_service,
@@ -40,14 +41,37 @@ def app(session, event_bus) -> Iterator[FastAPI]:
         session, event_bus
     )
     app.dependency_overrides[get_web_session_config] = lambda: TEST_SESSION_CONFIG
+    app.dependency_overrides[get_auth_context] = _deny_auth_context
     yield app
     app.dependency_overrides.clear()
 
 
+def _deny_auth_context():
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not authorize credentials",
+    )
+
+
 @pytest.fixture
 def as_user(app, user) -> FastAPI:
-    """Opt-in: bypass real JWT auth and run every route as `user`."""
-    app.dependency_overrides[get_current_user] = lambda: user
+    """Opt-in: run every route as `user` via a session credential."""
+    app.dependency_overrides[get_auth_context] = lambda: AuthContext(
+        user=user.to_summary(),
+        method=CredentialMethod.SESSION,
+        credential_id=user.id,
+    )
+    return app
+
+
+@pytest.fixture
+def as_api_key(app, user) -> FastAPI:
+    """Opt-in: run every route as `user` via an API-key credential."""
+    app.dependency_overrides[get_auth_context] = lambda: AuthContext(
+        user=user.to_summary(),
+        method=CredentialMethod.API,
+        credential_id=user.id,
+    )
     return app
 
 
@@ -142,6 +166,16 @@ class TestDeviceAuthRouter:
         resp = await client.post(self.APPROVE, json={"user_code": "ZZZZ-ZZZZ"})
 
         assert resp.status_code == 400
+
+    async def test_approve_with_api_key_credential_returns_401(
+        self, client, as_api_key, session
+    ):
+        raw, code = DeviceCode.issue()
+        await DeviceAuthRepo(session).add(code)
+
+        resp = await client.post(self.APPROVE, json={"user_code": code.user_code})
+
+        assert resp.status_code == 401
 
 
 class TestBrowserAuthRouter:
