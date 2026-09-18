@@ -177,3 +177,19 @@ async def get_auth_context(
         method=CredentialMethod.SESSION,
         credential_id=session.session_id,
     )
+
+
+def require_session(
+    ctx: Annotated[AuthContext, Depends(get_auth_context)],
+) -> AuthContext:
+    if ctx.method != CredentialMethod.SESSION:
+        raise _unauthorized(detail="Invalid session")
+    return ctx
+
+
+def require_api_key(
+    ctx: Annotated[AuthContext, Depends(get_auth_context)],
+) -> AuthContext:
+    if ctx.method != CredentialMethod.API:
+        raise _unauthorized(detail="Invalid API Key")
+    return ctx

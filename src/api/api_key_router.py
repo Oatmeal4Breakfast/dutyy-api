@@ -5,13 +5,13 @@ from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_api_service, get_auth_context
+from src.api.deps import get_api_service, require_session
 from src.domain.api import APIKeyStatus, APIKeySummary
 from src.service.api_service import APIService
-from src.service.auth_service import AuthContext, CredentialMethod
+from src.service.auth_service import AuthContext
 
 
 class APIKeyExpiry(StrEnum):
@@ -49,23 +49,18 @@ router = APIRouter(
 )
 
 APIServiceDep = Annotated[APIService, Depends(get_api_service)]
-AuthCTXDep = Annotated[AuthContext, Depends(get_auth_context)]
+SessionAuthDep = Annotated[AuthContext, Depends(require_session)]
 
 
 @router.post(path="", status_code=201)
 async def issue_new_key(
-    ctx: AuthCTXDep,
+    session: SessionAuthDep,
     request: IssueKeyRequest,
     service: APIServiceDep,
 ):
-    if ctx.method != CredentialMethod.SESSION:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="session authentication required",
-        )
 
     raw_key: str = await service.issue_new_key(
-        user_id=ctx.user.id,
+        user_id=session.user.id,
         key_name=request.key_name,
         ttl=request.ttl.to_timedelta(),
     )
@@ -73,27 +68,18 @@ async def issue_new_key(
 
 
 @router.get(path="", response_model=list[APIKeyResponse])
-async def get_api_keys(ctx: AuthCTXDep, service: APIServiceDep):
-    if ctx.method != CredentialMethod.SESSION:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="session authentication required",
-        )
+async def get_api_keys(session: SessionAuthDep, service: APIServiceDep):
 
-    keys: list[APIKeySummary] = await service.get_keys_by_user_id(user_id=ctx.user.id)
+    keys: list[APIKeySummary] = await service.get_keys_by_user_id(
+        user_id=session.user.id
+    )
     return [APIKeyResponse.model_validate(key) for key in keys]
 
 
 @router.delete(path="/{key_id}", status_code=204)
 async def delete_key(
-    ctx: AuthCTXDep,
+    session: SessionAuthDep,
     service: APIServiceDep,
     key_id: UUID,
 ):
-    if ctx.method != CredentialMethod.SESSION:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="session authentication required",
-        )
-
-    await service.revoke(user_id=ctx.user.id, key_id=key_id)
+    await service.revoke(user_id=session.user.id, key_id=key_id)
