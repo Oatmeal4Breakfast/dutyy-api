@@ -128,7 +128,7 @@ class TestAPIService:
         assert result is None
         assert not any(log["event"] == "access_denied" for log in logs)
         assert not any(log["event"] == "api_key_revoked" for log in logs)
-        persisted: APIKey | None = await repo.get_by_id(key_id=key.id)
+        persisted: APIKey | None = await repo.get_by_id(key_id=key.id, owner_id=user.id)
         assert persisted is not None
         assert persisted.status == APIKeyStatus.ACTIVE
 
@@ -144,8 +144,8 @@ class TestAPIService:
             result = await service.revoke(user_id=uuid7(), key_id=key.id)
 
         assert result is None
-        assert any(log["event"] == "access_denied" for log in logs)
-        persists: APIKey | None = await repo.get_by_id(key_id=key.id)
+        assert not any(log["event"] == "api_key_revoked" for log in logs)
+        persists: APIKey | None = await repo.get_by_id(key_id=key.id, owner_id=user.id)
         assert persists is not None
         assert persists.status == APIKeyStatus.ACTIVE
 

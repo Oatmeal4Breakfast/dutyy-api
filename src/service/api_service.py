@@ -58,16 +58,12 @@ class APIService:
 
     async def revoke(self, user_id: UUID, key_id: UUID) -> None:
         async with self._uow_factory() as uow:
-            key: APIKey | None = await uow.api.get_by_id(key_id=key_id)
+            key: APIKey | None = await uow.api.get_by_id(
+                key_id=key_id, owner_id=user_id
+            )
 
             if key is None:
                 return None
-
-            if key.user_id != user_id:
-                logger.error(
-                    event="access_denied", user_id=str(user_id), key_id=str(key_id)
-                )
-                return
 
             key.mark_inactive()
 
