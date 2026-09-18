@@ -101,11 +101,12 @@ class TestAuthContext:
         api_service = make_api_service(session, event_bus)
         auth_service = make_auth_service(session, event_bus)
         user_service = make_user_service(session, event_bus)
+        config = WebSessionConfig()
         return await get_auth_context(
+            request=request,
+            config=config,
             api_key=await get_optional_api_key(request, api_service),
-            session=await get_optional_session(
-                request, WebSessionConfig(), auth_service
-            ),
+            session=await get_optional_session(request, config, auth_service),
             user_service=user_service,
         )
 

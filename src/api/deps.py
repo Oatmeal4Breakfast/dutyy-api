@@ -169,7 +169,8 @@ async def get_auth_context(
             method=CredentialMethod.API,
             credential_id=api_key.id,
         )
-    assert session is not None
+    if session is None:
+        raise _unauthorized()
 
     return AuthContext(
         user=session.user_summary,
