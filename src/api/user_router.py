@@ -7,8 +7,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_current_user, get_user_service
+from src.api.deps import get_auth_context, get_user_service
 from src.domain.user import UserStatus, UserSummary, UserUpdateFields
+from src.service.auth_service import AuthContext
 from src.service.user_service import UserService
 
 
@@ -49,12 +50,12 @@ class UserResponse(BaseModel):
 router = APIRouter(prefix="/dutyy/api/v1", tags=["Users"])
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-CurrentUserDep = Annotated[UserSummary, Depends(get_current_user)]
+AuthCtxDep = Annotated[AuthContext, Depends(get_auth_context)]
 
 
 @router.get(path="/users/{user_id}", response_model=UserResponse)
 async def get_user_by_id(
-    user_id: UUID, service: UserServiceDep, current_user: CurrentUserDep
+    user_id: UUID, service: UserServiceDep, ctx: AuthCtxDep
 ) -> UserResponse:
     user: UserSummary = await service.get_user_by_id(user_id)
     return UserResponse.model_validate(user)
@@ -71,7 +72,7 @@ async def create_user(user: CreateUserRequest, service: UserServiceDep) -> UserR
 @router.get(path="/users", response_model=list[UserResponse])
 async def get_all_users(
     service: UserServiceDep,
-    current_user: CurrentUserDep,
+    ctx: AuthCtxDep,
     page: int = 1,
     page_size: int = 100,
 ) -> list[UserResponse]:
@@ -84,7 +85,7 @@ async def get_all_users(
 @router.patch(path="/users/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: UUID,
-    current_user: CurrentUserDep,
+    ctx: AuthCtxDep,
     payload: UserUpdateRequest,
     service: UserServiceDep,
 ) -> UserResponse:
