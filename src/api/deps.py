@@ -114,7 +114,7 @@ async def get_api_key_user(
     return await service.get_user_by_id(user_id=key.user_id)
 
 
-def _unauthorized(detail: str = "Could not authorize credentials") -> HTTPException:
+def _unauthorized(detail: str = "Could not validate credentials") -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail=detail,
@@ -145,11 +145,17 @@ async def get_optional_session(
 
 
 async def get_auth_context(
+    request: Request,
+    config: Annotated[WebSessionConfig, Depends(get_web_session_config)],
     api_key: Annotated[APIKey | None, Depends(get_optional_api_key)],
     session: Annotated[SessionState | None, Depends(get_optional_session)],
     user_service: Annotated[UserService, Depends(get_user_service)],
 ) -> AuthContext:
-    if (api_key is not None) == (session is not None):
+
+    cookie_presence: bool = config.cookie_name in request.cookies
+    api_key_presence: bool = "X-API-Key" in request.headers
+
+    if cookie_presence and api_key_presence:
         raise _unauthorized()
     if api_key is not None:
         try:
