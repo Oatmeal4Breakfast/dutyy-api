@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from uuid import uuid7
 
 import pytest
 from fastapi import FastAPI
@@ -57,43 +56,16 @@ async def client(app):
 
 class TestUserRouter:
     _USERS_URL = "/dutyy/api/v1/users"
+    _ME_URL = f"{_USERS_URL}/me"
 
     async def test_get_user_returns_user(self, client, as_user, user):
-        response = await client.get(f"{self._USERS_URL}/{user.id}")
+        response = await client.get(self._ME_URL)
 
         assert response.status_code == 200
         body = response.json()
         assert body["id"] == str(user.id)
         assert body["email"] == user.email
         assert body["status"] == UserStatus.ACTIVE
-
-    async def test_list_users_returns_users(self, client, as_user, user, user_service):
-        await user_service.create_user(
-            fname="Jane", lname="Smith", email="jane.smith@example.com"
-        )
-
-        response = await client.get(self._USERS_URL)
-
-        assert response.status_code == 200
-        body = response.json()
-        assert len(body) == 2
-        assert {item["email"] for item in body} == {
-            user.email,
-            "jane.smith@example.com",
-        }
-
-    async def test_list_users_honors_pagination(self, client, as_user, user_service):
-        await user_service.create_user(
-            fname="Jane", lname="Smith", email="jane.smith@example.com"
-        )
-        await user_service.create_user(
-            fname="Alex", lname="Jones", email="alex.jones@example.com"
-        )
-
-        response = await client.get(f"{self._USERS_URL}?page=2&page_size=1")
-
-        assert response.status_code == 200
-        assert len(response.json()) == 1
 
     async def test_create_user_is_public(self, client, user_service):
         response = await client.post(
@@ -113,30 +85,25 @@ class TestUserRouter:
 
     async def test_update_user_changes_fields(self, client, as_user, user):
         response = await client.patch(
-            f"{self._USERS_URL}/{user.id}",
-            json={"first_name": " Updated ", "status": UserStatus.INACTIVE},
+            self._ME_URL,
+            json={
+                "first_name": " Updated ",
+                "email": "updated@example.com",
+            },
         )
 
         assert response.status_code == 200
         body = response.json()
         assert body["first_name"] == "Updated"
-        assert body["status"] == UserStatus.INACTIVE
+        assert body["email"] == "updated@example.com"
 
     async def test_empty_update_returns_400(self, client, as_user, user):
-        response = await client.patch(f"{self._USERS_URL}/{user.id}", json={})
+        response = await client.patch(self._ME_URL, json={})
 
         assert response.status_code == 400
         assert response.json() == {"detail": "no fields provided to update"}
 
-    async def test_unknown_user_returns_404(self, client, as_user):
-        user_id = uuid7()
-
-        response = await client.get(f"{self._USERS_URL}/{user_id}")
-
-        assert response.status_code == 404
-        assert response.json() == {"detail": f"user with id {user_id} not found"}
-
     async def test_protected_user_routes_require_authentication(self, client, user):
-        response = await client.get(f"{self._USERS_URL}/{user.id}")
+        response = await client.get(self._ME_URL)
 
         assert response.status_code == 401
