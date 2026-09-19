@@ -1,3 +1,4 @@
+import secrets
 from functools import partial
 from typing import Annotated
 
@@ -63,7 +64,6 @@ def _validate_origin(
     if request.method not in STATE_CHANGING_METHODS:
         return
 
-    # API-key clients are not vulnerable to browser cookie attachment.
     if "X-API-Key" in request.headers and session_cookie_name not in request.cookies:
         return
 
@@ -208,3 +208,27 @@ def require_api_key(
     if ctx.method != CredentialMethod.API:
         raise _unauthorized(detail="Invalid API Key")
     return ctx
+
+
+async def require_csrf_token(
+    request: Request,
+    ctx: Annotated[AuthContext, Depends(get_auth_context)],
+    session: Annotated[SessionState | None, Depends(get_optional_session)],
+) -> None:
+
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+
+    if ctx.method == CredentialMethod.API:
+        return
+
+    provided: str | None = request.headers.get("X-CSRF-Token")
+    if provided is None or session is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF"
+        )
+
+    if not secrets.compare_digest(provided, session.csrf_token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF"
+        )

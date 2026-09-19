@@ -14,6 +14,7 @@ from src.api.deps import (
     get_device_auth_service,
     get_web_session_config,
     require_allowed_origin,
+    require_csrf_token,
 )
 from src.config import WebSessionConfig
 from src.domain.device_auth import KeyLifetime
@@ -110,6 +111,7 @@ APIServiceDep = Annotated[APIService, Depends(get_api_service)]
 WebSessionConfigDep = Annotated[WebSessionConfig, Depends(get_web_session_config)]
 AuthCTXDep = Annotated[AuthContext, Depends(get_auth_context)]
 OriginDep = Annotated[None, Depends(require_allowed_origin)]
+CSRFDep = Annotated[None, Depends(require_csrf_token)]
 
 
 @router.post(path="/set-password", status_code=204)
@@ -158,6 +160,7 @@ async def logout(
     service: AuthServiceDep,
     config: WebSessionConfigDep,
     _: OriginDep,
+    __: CSRFDep,
 ):
     cookie: str | None = request.cookies.get(config.cookie_name)
 
@@ -261,6 +264,7 @@ async def approve_device(
     request: DeviceAuthApproveRequest,
     service: DeviceAuthServiceDep,
     ctx: AuthCTXDep,
+    _: CSRFDep,
 ):
     if ctx.method != CredentialMethod.SESSION:
         raise HTTPException(
