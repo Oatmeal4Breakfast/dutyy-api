@@ -4,7 +4,8 @@ import pytest
 from fastapi import FastAPI, HTTPException, status
 from httpx import ASGITransport, AsyncClient
 
-from src.api.deps import get_api_service, get_auth_context
+from src.api.deps import get_api_service, get_auth_context, require_csrf_token
+from src.config import WebSessionConfig
 from src.domain.api import APIKeyStatus
 from src.main import create_app
 from src.service.auth_service import AuthContext, CredentialMethod
@@ -25,6 +26,10 @@ def app(session, event_bus) -> FastAPI:
         session, event_bus
     )
     app.dependency_overrides[get_auth_context] = _deny_auth_context
+    app.dependency_overrides[require_csrf_token] = lambda: None
+    app.state.web_session_config = WebSessionConfig(
+        cookie_name="dutyy-test-session", secure=False
+    )
     app.state.allowed_origins = frozenset({"http://test"})
     yield app
     app.dependency_overrides.clear()
