@@ -56,6 +56,7 @@ class SessionState:
     user_summary: UserSummary
     idle_expires_at: datetime
     absolute_expires_at: datetime
+    csrf_token: str
     session_id: UUID
 
 
@@ -260,5 +261,6 @@ class AuthService:
             user_summary=user.to_summary(),
             idle_expires_at=session.idle_expires_at,
             absolute_expires_at=session.absolute_expires_at,
+            csrf_token=session.csrf_token,
             session_id=session.id,
         )
