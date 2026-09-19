@@ -93,7 +93,6 @@ def make_user_service(session, event_bus) -> UserService:
 def make_auth_service(session, event_bus) -> AuthService:
     config = AuthServiceConfig(
         token_ttl=timedelta(minutes=30),
-        secret="test-secret-at-least-32-bytes-long",
     )
 
     web_session_config = WebSessionConfig()

@@ -4,13 +4,11 @@ import asyncio
 import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-import jwt
-from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 
 from src.config import AuthServiceConfig, WebSessionConfig
@@ -78,9 +76,6 @@ class AuthService:
     ) -> None:
         self._uow_factory: Callable[[], AbstractUnitOfWork] = uow_factory
         self._hasher: PasswordHash = PasswordHash.recommended()
-        self.jwt_ttl: timedelta = auth_service_config.jwt_ttl
-        self.secret: str = auth_service_config.secret
-        self.algorithm: str = auth_service_config.algorithm
         self.token_ttl: timedelta = auth_service_config.token_ttl
         self.fake_password: str = auth_service_config.fake_password
         self.fake_password_hash: str = self._hasher.hash(self.fake_password)
@@ -214,17 +209,6 @@ class AuthService:
             )
             return user
 
-    def _create_access_token(
-        self, payload: dict[str, str | datetime], expires_delta: timedelta
-    ) -> str:
-        to_encode = payload.copy()
-        expire: datetime = datetime.now(UTC) + expires_delta
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(
-            payload=to_encode, key=self.secret, algorithm=self.algorithm
-        )
-        return encoded_jwt
-
     async def login(self, user_email: str, password: str) -> BrowserLogin | None:
         user: User | None = await self._authenticate_user(
             user_email=user_email, password=password
@@ -278,40 +262,3 @@ class AuthService:
             absolute_expires_at=session.absolute_expires_at,
             session_id=session.id,
         )
-
-    def _subject_from_token(self, token: str) -> UUID | None:
-        try:
-            payload: dict[str, Any] = jwt.decode(
-                jwt=token, key=self.secret, algorithms=[self.algorithm]
-            )
-        except InvalidTokenError as e:
-            logger.warning(event="could_not_decode_token", error=str(e))
-            return None
-
-        sub: str | None = payload.get("sub")
-
-        if sub is None:
-            logger.error(event="no_user_in_payload")
-            return None
-
-        try:
-            user_id = UUID(sub)
-        except ValueError:
-            logger.error("invalid_auth_token", sub=sub)
-            return None
-
-        return user_id
-
-    async def get_current_user(self, token: str) -> User | None:
-        user_id: UUID | None = self._subject_from_token(token)
-
-        if user_id is None:
-            return None
-
-        async with self._uow_factory() as uow:
-            user: User | None = await uow.user.get_by_id(user_id=user_id)
-
-        if user is None or user.status != UserStatus.ACTIVE:
-            return None
-
-        return user

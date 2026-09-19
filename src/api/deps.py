@@ -66,27 +66,6 @@ def get_project_service(
     return ProjectService(uow_factory)
 
 
-async def get_current_user(
-    request: Request,
-    config: Annotated[WebSessionConfig, Depends(get_web_session_config)],
-    service: Annotated[AuthService, Depends(get_auth_service)],
-) -> UserSummary:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-    )
-
-    token: str | None = request.cookies.get(config.cookie_name)
-    if token is None:
-        raise credentials_exception
-
-    session_state: SessionState | None = await service.get_session_user(token)
-    if session_state is None:
-        raise credentials_exception
-
-    return session_state.user_summary
-
-
 async def get_api_key(
     request: Request, service: Annotated[APIService, Depends(get_api_service)]
 ) -> APIKey:
