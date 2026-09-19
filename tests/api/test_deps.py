@@ -11,6 +11,7 @@ from src.api.deps import (
     get_auth_context,
     get_optional_api_key,
     get_optional_session,
+    require_allowed_origin,
 )
 from src.config import WebSessionConfig
 from src.domain.api import APIKey
@@ -25,12 +26,51 @@ _hasher = PasswordHash.recommended()
 _TEST_COOKIE = WebSessionConfig().cookie_name
 
 
-def make_request(headers: dict[str, str]) -> Request:
+def make_request(headers: dict[str, str], method: str = "GET") -> Request:
     scope: dict[str, Any] = {
         "type": "http",
+        "method": method,
         "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
     }
     return Request(scope=scope)
+
+
+def test_require_allowed_origin_accepts_configured_origin() -> None:
+    request = make_request({"Origin": "https://dutyy.app"}, method="POST")
+
+    require_allowed_origin(
+        request,
+        config=WebSessionConfig(),
+        allowed_origins=frozenset({"https://dutyy.app"}),
+    )
+
+
+@pytest.mark.parametrize("origin", [None, "https://evil.example"])
+def test_require_allowed_origin_rejects_untrusted_origin(origin: str | None) -> None:
+    headers = {} if origin is None else {"Origin": origin}
+    request = make_request(headers, method="POST")
+
+    with pytest.raises(HTTPException) as exc:
+        require_allowed_origin(
+            request,
+            config=WebSessionConfig(),
+            allowed_origins=frozenset({"https://dutyy.app"}),
+        )
+
+    assert exc.value.status_code == 403
+
+
+def test_require_allowed_origin_skips_api_key_without_session_cookie() -> None:
+    request = make_request(
+        {"X-API-Key": "dty_test_key"},
+        method="POST",
+    )
+
+    require_allowed_origin(
+        request,
+        config=WebSessionConfig(),
+        allowed_origins=frozenset({"https://dutyy.app"}),
+    )
 
 
 class TestDeps:
@@ -108,6 +148,7 @@ class TestAuthContext:
             api_key=await get_optional_api_key(request, api_service),
             session=await get_optional_session(request, config, auth_service),
             user_service=user_service,
+            allowed_origins=frozenset({"http://test"}),
         )
 
     async def test_session_credential_builds_session_context(

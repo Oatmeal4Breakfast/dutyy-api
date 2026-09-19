@@ -27,6 +27,7 @@ def app(session, event_bus, user_service) -> Iterator[FastAPI]:
     app.state.web_session_config = WebSessionConfig(
         cookie_name="dutyy-test-session", secure=False
     )
+    app.state.allowed_origins = frozenset({"http://test"})
     yield app
     app.dependency_overrides.clear()
 

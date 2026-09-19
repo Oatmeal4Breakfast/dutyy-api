@@ -20,6 +20,8 @@ from src.service.device_auth_service import DeviceAuthService
 from src.service.project_service import ProjectService
 from src.service.user_service import UserNotFoundError, UserService
 
+STATE_CHANGING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
 
 def get_event_bus(request: Request) -> EventBus:
     return request.app.state.event_bus
@@ -47,6 +49,38 @@ def get_api_service(request: Request) -> APIService:
 
 def get_web_session_config(request: Request) -> WebSessionConfig:
     return request.app.state.web_session_config
+
+
+def get_allowed_origins(request: Request) -> frozenset[str]:
+    return request.app.state.allowed_origins
+
+
+def _validate_origin(
+    request: Request,
+    allowed_origins: frozenset[str],
+    session_cookie_name: str,
+) -> None:
+    if request.method not in STATE_CHANGING_METHODS:
+        return
+
+    # API-key clients are not vulnerable to browser cookie attachment.
+    if "X-API-Key" in request.headers and session_cookie_name not in request.cookies:
+        return
+
+    origin: str | None = request.headers.get("origin")
+    if origin is None or origin not in allowed_origins:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid origin",
+        )
+
+
+def require_allowed_origin(
+    request: Request,
+    config: Annotated[WebSessionConfig, Depends(get_web_session_config)],
+    allowed_origins: Annotated[frozenset[str], Depends(get_allowed_origins)],
+) -> None:
+    _validate_origin(request, allowed_origins, config.cookie_name)
 
 
 def get_uow(
@@ -129,10 +163,12 @@ async def get_auth_context(
     api_key: Annotated[APIKey | None, Depends(get_optional_api_key)],
     session: Annotated[SessionState | None, Depends(get_optional_session)],
     user_service: Annotated[UserService, Depends(get_user_service)],
+    allowed_origins: Annotated[frozenset[str], Depends(get_allowed_origins)],
 ) -> AuthContext:
-
     cookie_presence: bool = config.cookie_name in request.cookies
     api_key_presence: bool = "X-API-Key" in request.headers
+
+    _validate_origin(request, allowed_origins, config.cookie_name)
 
     if cookie_presence and api_key_presence:
         raise _unauthorized()
