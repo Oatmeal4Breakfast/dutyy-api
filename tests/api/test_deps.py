@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid7
 
 import pytest
 from fastapi import HTTPException, Request
@@ -12,13 +13,14 @@ from src.api.deps import (
     get_optional_api_key,
     get_optional_session,
     require_allowed_origin,
+    require_csrf_token,
 )
 from src.config import WebSessionConfig
 from src.domain.api import APIKey
-from src.domain.user import UserStatus
+from src.domain.user import UserStatus, UserSummary
 from src.repository.user_repo import UserRepo
 from src.service.api_service import APIService
-from src.service.auth_service import CredentialMethod
+from src.service.auth_service import AuthContext, CredentialMethod, SessionState
 from src.service.user_service import UserService
 from tests.conftest import make_api_service, make_auth_service, make_user_service
 
@@ -33,6 +35,35 @@ def make_request(headers: dict[str, str], method: str = "GET") -> Request:
         "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()],
     }
     return Request(scope=scope)
+
+
+def make_session_state(csrf_token: str = "csrf-token") -> SessionState:
+    now = datetime.now(UTC)
+    return SessionState(
+        user_summary=UserSummary(
+            first_name="John",
+            last_name="Doe",
+            email="john.doe@example.com",
+            last_login=None,
+            modified_date=None,
+            created_date=now,
+            status=UserStatus.ACTIVE,
+            id=uuid7(),
+        ),
+        idle_expires_at=now + timedelta(minutes=30),
+        absolute_expires_at=now + timedelta(days=7),
+        csrf_token=csrf_token,
+        session_id=uuid7(),
+    )
+
+
+def make_auth_context(method: CredentialMethod) -> AuthContext:
+    session = make_session_state()
+    return AuthContext(
+        user=session.user_summary,
+        method=method,
+        credential_id=session.session_id,
+    )
 
 
 def test_require_allowed_origin_accepts_configured_origin() -> None:
@@ -70,6 +101,52 @@ def test_require_allowed_origin_skips_api_key_without_session_cookie() -> None:
         request,
         config=WebSessionConfig(),
         allowed_origins=frozenset({"https://dutyy.app"}),
+    )
+
+
+async def test_require_csrf_token_accepts_matching_session_token() -> None:
+    request = make_request({"X-CSRF-Token": "csrf-token"}, method="POST")
+
+    await require_csrf_token(
+        request,
+        ctx=make_auth_context(CredentialMethod.SESSION),
+        session=make_session_state(),
+    )
+
+
+@pytest.mark.parametrize("headers", [{}, {"X-CSRF-Token": "wrong-token"}])
+async def test_require_csrf_token_rejects_missing_or_invalid_token(
+    headers: dict[str, str],
+) -> None:
+    request = make_request(headers, method="POST")
+
+    with pytest.raises(HTTPException) as exc:
+        await require_csrf_token(
+            request,
+            ctx=make_auth_context(CredentialMethod.SESSION),
+            session=make_session_state(),
+        )
+
+    assert exc.value.status_code == 403
+
+
+async def test_require_csrf_token_skips_safe_methods() -> None:
+    request = make_request({}, method="GET")
+
+    await require_csrf_token(
+        request,
+        ctx=make_auth_context(CredentialMethod.SESSION),
+        session=make_session_state(),
+    )
+
+
+async def test_require_csrf_token_skips_api_key_authentication() -> None:
+    request = make_request({}, method="POST")
+
+    await require_csrf_token(
+        request,
+        ctx=make_auth_context(CredentialMethod.API),
+        session=None,
     )
 
 
