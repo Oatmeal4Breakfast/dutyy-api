@@ -42,6 +42,7 @@ def app(session, event_bus) -> Iterator[FastAPI]:
     )
     app.dependency_overrides[get_web_session_config] = lambda: TEST_SESSION_CONFIG
     app.dependency_overrides[get_auth_context] = _deny_auth_context
+    app.state.allowed_origins = frozenset({"http://test"})
     yield app
     app.dependency_overrides.clear()
 
@@ -78,7 +79,9 @@ def as_api_key(app, user) -> FastAPI:
 @pytest.fixture
 async def client(app):
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Origin": "http://test"},
     ) as c:
         yield c
 
@@ -204,6 +207,7 @@ class TestBrowserAuthRouter:
         assert "HttpOnly" in set_cookie
         assert "Secure" not in set_cookie
         assert resp.headers.get("cache-control") == "no-store"
+        assert resp.headers.get("x-csrf-token")
 
     async def test_login_wrong_password_and_unknown_user_both_401(
         self, client, session, user
@@ -236,6 +240,9 @@ class TestBrowserAuthRouter:
         assert body["idle_expires_at"]
         assert body["absolute_expires_at"]
         assert resp.headers.get("cache-control") == "no-store"
+        assert resp.headers.get("x-csrf-token") == login_resp.headers.get(
+            "x-csrf-token"
+        )
 
     async def test_session_without_cookie_returns_401(self, client):
         resp = await client.get(self.SESSION)

@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
     uow_factory: partial[UnitOfWork] = partial(UnitOfWork, session_factory, bus)
     app.state.session_factory: async_sessionmaker[AsyncSession] = session_factory
     app.state.web_session_config = web_session_config
+    app.state.allowed_origins = frozenset({config.frontend_url.rstrip("/")})
     app.state.event_bus: EventBus = bus
     app.state.auth_service = AuthService(
         uow_factory=uow_factory,

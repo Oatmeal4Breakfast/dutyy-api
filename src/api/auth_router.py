@@ -13,6 +13,7 @@ from src.api.deps import (
     get_auth_service,
     get_device_auth_service,
     get_web_session_config,
+    require_allowed_origin,
 )
 from src.config import WebSessionConfig
 from src.domain.device_auth import KeyLifetime
@@ -108,10 +109,13 @@ DeviceAuthServiceDep = Annotated[DeviceAuthService, Depends(get_device_auth_serv
 APIServiceDep = Annotated[APIService, Depends(get_api_service)]
 WebSessionConfigDep = Annotated[WebSessionConfig, Depends(get_web_session_config)]
 AuthCTXDep = Annotated[AuthContext, Depends(get_auth_context)]
+OriginDep = Annotated[None, Depends(require_allowed_origin)]
 
 
 @router.post(path="/set-password", status_code=204)
-async def set_user_password(request: SetPasswordRequest, service: AuthServiceDep):
+async def set_user_password(
+    request: SetPasswordRequest, service: AuthServiceDep, _: OriginDep
+):
     await service.set_password(
         raw_token=request.raw_token, new_password=request.new_password
     )
@@ -124,6 +128,7 @@ async def login(
     service: AuthServiceDep,
     config: WebSessionConfigDep,
     response: Response,
+    _: OriginDep,
 ):
     login: BrowserLogin | None = await service.login(
         user_email=request.email, password=request.password
@@ -152,6 +157,7 @@ async def logout(
     response: Response,
     service: AuthServiceDep,
     config: WebSessionConfigDep,
+    _: OriginDep,
 ):
     cookie: str | None = request.cookies.get(config.cookie_name)
 
@@ -193,7 +199,7 @@ async def get_user_session(
 
 @router.post(path="/request-password-reset", status_code=204)
 async def request_password_reset(
-    request: PasswordResetRequest, service: AuthServiceDep
+    request: PasswordResetRequest, service: AuthServiceDep, _: OriginDep
 ):
     await service.handle_password_reset(user_email=request.email)
     return Response(status_code=204)
