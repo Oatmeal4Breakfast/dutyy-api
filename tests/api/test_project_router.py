@@ -5,7 +5,11 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from src.api.deps import get_auth_context, get_project_service
+from src.api.deps import (
+    get_auth_context,
+    get_project_service,
+    require_csrf_token,
+)
 from src.config import WebSessionConfig
 from src.domain.dutyy import DutyyStatus
 from src.domain.project import ProjectStatus, PublishingStatus
@@ -31,6 +35,7 @@ def project_service(session, event_bus):
 def app(project_service, session, event_bus) -> Iterator[FastAPI]:
     app = create_app()
     app.dependency_overrides[get_project_service] = lambda: project_service
+    app.dependency_overrides[require_csrf_token] = lambda: None
     app.state.auth_service = make_auth_service(session, event_bus)
     app.state.api_service = make_api_service(session, event_bus)
     app.state.user_service = make_user_service(session, event_bus)

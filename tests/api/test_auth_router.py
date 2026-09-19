@@ -11,6 +11,7 @@ from src.api.deps import (
     get_auth_service,
     get_device_auth_service,
     get_web_session_config,
+    require_csrf_token,
 )
 from src.config import WebSessionConfig
 from src.domain.device_auth import DeviceCode, DeviceCodeStatus
@@ -42,6 +43,7 @@ def app(session, event_bus) -> Iterator[FastAPI]:
     )
     app.dependency_overrides[get_web_session_config] = lambda: TEST_SESSION_CONFIG
     app.dependency_overrides[get_auth_context] = _deny_auth_context
+    app.dependency_overrides[require_csrf_token] = lambda: None
     app.state.allowed_origins = frozenset({"http://test"})
     yield app
     app.dependency_overrides.clear()

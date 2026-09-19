@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from src.api.deps import get_auth_context, get_user_service
+from src.api.deps import get_auth_context, get_user_service, require_csrf_token
 from src.config import WebSessionConfig
 from src.domain.user import UserStatus
 from src.main import create_app
@@ -21,6 +21,7 @@ from tests.conftest import (
 def app(session, event_bus, user_service) -> Iterator[FastAPI]:
     app = create_app()
     app.dependency_overrides[get_user_service] = lambda: user_service
+    app.dependency_overrides[require_csrf_token] = lambda: None
     app.state.auth_service = make_auth_service(session, event_bus)
     app.state.api_service = make_api_service(session, event_bus)
     app.state.user_service = user_service
