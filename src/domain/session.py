@@ -32,6 +32,7 @@ class WebSession(Base):
     __tablename__ = "web_sessions"
 
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    csrf_token: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -57,10 +58,16 @@ class WebSession(Base):
 
     def __post_init__(self) -> None:
         norm_hash: str = self.token_hash.strip()
+        norm_csrf: str = self.csrf_token.strip()
+
         if not norm_hash:
             raise DomainValidationError("WebSession", ["token hash cannot be empty"])
 
-        self.token_hash = norm_hash
+        if not norm_csrf:
+            raise DomainValidationError("WebSession", ["csrf_token cannot be empty"])
+
+        self.token_hash: str = norm_hash
+        self.csrf_token: str = norm_csrf
 
         if self.created_at > self.last_seen_at:
             raise DomainValidationError(
@@ -80,6 +87,7 @@ class WebSession(Base):
     def issue(
         cls, user_id: UUID, policy: SessionPolicy, now: datetime | None = None
     ) -> tuple[str, "WebSession"]:
+        csrf_token: str = secrets.token_urlsafe(32)
         raw_token: str = secrets.token_urlsafe(32)
         hashed_token: str = cls.hash_token(raw_token)
         if now is None:
@@ -87,6 +95,7 @@ class WebSession(Base):
 
         return raw_token, cls(
             token_hash=hashed_token,
+            csrf_token=csrf_token,
             user_id=user_id,
             idle_expires_at=now + policy.idle_ttl,
             absolute_expires_at=now + policy.absolute_ttl,
