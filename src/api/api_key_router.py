@@ -8,10 +8,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_api_service, get_current_user
+from src.api.deps import get_api_service, require_session
 from src.domain.api import APIKeyStatus, APIKeySummary
-from src.domain.user import UserSummary
 from src.service.api_service import APIService
+from src.service.auth_service import AuthContext
 
 
 class APIKeyExpiry(StrEnum):
@@ -49,17 +49,18 @@ router = APIRouter(
 )
 
 APIServiceDep = Annotated[APIService, Depends(get_api_service)]
-CurrentUser = Annotated[UserSummary, Depends(get_current_user)]
+SessionAuthDep = Annotated[AuthContext, Depends(require_session)]
 
 
 @router.post(path="", status_code=201)
 async def issue_new_key(
-    current_user: CurrentUser,
+    session: SessionAuthDep,
     request: IssueKeyRequest,
     service: APIServiceDep,
 ):
+
     raw_key: str = await service.issue_new_key(
-        user_id=current_user.id,
+        user_id=session.user.id,
         key_name=request.key_name,
         ttl=request.ttl.to_timedelta(),
     )
@@ -67,17 +68,18 @@ async def issue_new_key(
 
 
 @router.get(path="", response_model=list[APIKeyResponse])
-async def get_api_keys(current_user: CurrentUser, service: APIServiceDep):
+async def get_api_keys(session: SessionAuthDep, service: APIServiceDep):
+
     keys: list[APIKeySummary] = await service.get_keys_by_user_id(
-        user_id=current_user.id
+        user_id=session.user.id
     )
     return [APIKeyResponse.model_validate(key) for key in keys]
 
 
 @router.delete(path="/{key_id}", status_code=204)
 async def delete_key(
-    current_user: CurrentUser,
+    session: SessionAuthDep,
     service: APIServiceDep,
     key_id: UUID,
 ):
-    await service.revoke(user_id=current_user.id, key_id=key_id)
+    await service.revoke(user_id=session.user.id, key_id=key_id)

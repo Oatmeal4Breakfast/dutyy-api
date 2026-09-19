@@ -5,10 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_current_user, get_project_service
+from src.api.deps import get_auth_context, get_project_service
 from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.project import Project, ProjectStatus, PublishingStatus
-from src.domain.user import UserSummary
+from src.service.auth_service import AuthContext
 from src.service.project_service import (
     EditDutyyCommand,
     EditProjectCommand,
@@ -75,41 +75,40 @@ class ProjectResponse(BaseModel):
 router = APIRouter(prefix="/dutyy/api/v1", tags=["Projects", "Dutyy"])
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
-CurrentUser = Annotated[UserSummary, Depends(get_current_user)]
+AuthCtxDep = Annotated[AuthContext, Depends(get_auth_context)]
 
 
 @router.post(
     "/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_project(
-    payload: CreateProjectRequest, user: CurrentUser, service: ProjectServiceDep
+    payload: CreateProjectRequest, ctx: AuthCtxDep, service: ProjectServiceDep
 ):
     project: Project = await service.create_project_draft(
-        project_name=payload.name,
-        owner_id=user.id,
+        project_name=payload.name, owner_id=ctx.user.id
     )
     return ProjectResponse.model_validate(project)
 
 
 @router.get("/projects", response_model=list[ProjectResponse])
-async def list_projects(user: CurrentUser, service: ProjectServiceDep):
-    projects: list[Project] = await service.list_projects(owner_id=user.id)
+async def list_projects(ctx: AuthCtxDep, service: ProjectServiceDep):
+    projects: list[Project] = await service.list_projects(owner_id=ctx.user.id)
     return [ProjectResponse.model_validate(project) for project in projects]
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
 async def get_project_by_id(
-    project_id: UUID, user: CurrentUser, service: ProjectServiceDep
+    project_id: UUID, ctx: AuthCtxDep, service: ProjectServiceDep
 ):
     return ProjectResponse.model_validate(
-        await service.get_project(project_id=project_id, owner_id=user.id)
+        await service.get_project(project_id=project_id, owner_id=ctx.user.id)
     )
 
 
 @router.patch("/projects/{project_id}", response_model=ProjectResponse)
 async def patch_project(
     project_id: UUID,
-    user: CurrentUser,
+    ctx: AuthCtxDep,
     service: ProjectServiceDep,
     payload: EditProjectRequest,
 ):
@@ -118,7 +117,7 @@ async def patch_project(
 
     command = EditProjectCommand(**payload.model_dump())
     project: Project = await service.edit_project(
-        owner_id=user.id, project_id=project_id, updates=command
+        owner_id=ctx.user.id, project_id=project_id, updates=command
     )
 
     return ProjectResponse.model_validate(project)
@@ -126,18 +125,18 @@ async def patch_project(
 
 @router.post("/projects/{project_id}/publish", status_code=status.HTTP_204_NO_CONTENT)
 async def publish_project(
-    project_id: UUID, user: CurrentUser, service: ProjectServiceDep
+    project_id: UUID, ctx: AuthCtxDep, service: ProjectServiceDep
 ):
-    await service.publish_project(project_id=project_id, owner_id=user.id)
+    await service.publish_project(project_id=project_id, owner_id=ctx.user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/projects/{project_id}/unpublish", response_model=ProjectResponse)
 async def unpublish_project(
-    project_id: UUID, user: CurrentUser, service: ProjectServiceDep
+    project_id: UUID, ctx: AuthCtxDep, service: ProjectServiceDep
 ):
     return ProjectResponse.model_validate(
-        await service.unpublish_project(project_id=project_id, owner_id=user.id)
+        await service.unpublish_project(project_id=project_id, owner_id=ctx.user.id)
     )
 
 
@@ -147,7 +146,7 @@ async def unpublish_project(
     status_code=status.HTTP_201_CREATED,
 )
 async def add_dutyy(
-    user: CurrentUser,
+    ctx: AuthCtxDep,
     service: ProjectServiceDep,
     project_id: UUID,
     payload: CreateDutyyRequest,
@@ -156,7 +155,7 @@ async def add_dutyy(
         dutyy_title=payload.title,
         details=payload.details,
         project_id=project_id,
-        owner_id=user.id,
+        owner_id=ctx.user.id,
     )
     return DutyyResponse.model_validate(dutyy)
 
@@ -166,10 +165,10 @@ async def add_dutyy(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_dutyy(
-    user: CurrentUser, service: ProjectServiceDep, project_id: UUID, dutyy_id: UUID
+    ctx: AuthCtxDep, service: ProjectServiceDep, project_id: UUID, dutyy_id: UUID
 ):
     await service.remove_dutyy(
-        dutyy_id=dutyy_id, project_id=project_id, owner_id=user.id
+        dutyy_id=dutyy_id, project_id=project_id, owner_id=ctx.user.id
     )
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -180,13 +179,13 @@ async def patch_dutyy(
     dutyy_id: UUID,
     payload: EditDutyyRequest,
     service: ProjectServiceDep,
-    user: CurrentUser,
+    ctx: AuthCtxDep,
 ):
     if payload.is_empty:
         raise HTTPException(status_code=400, detail="no fields provided to update")
     command = EditDutyyCommand(**payload.model_dump())
     dutyy: Dutyy = await service.edit_dutyy(
-        dutyy_id=dutyy_id, owner_id=user.id, updates=command
+        dutyy_id=dutyy_id, owner_id=ctx.user.id, updates=command
     )
 
     return DutyyResponse.model_validate(dutyy)

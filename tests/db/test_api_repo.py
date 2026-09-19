@@ -59,11 +59,15 @@ class TestAPIRepo:
         assert test_results is not api_key
         assert test_results.key_hash == api_key.key_hash
 
-    async def test_get_api_key_by_id_success(self, session, api_key, db_roundtrip):
+    async def test_get_api_key_by_id_success(
+        self, session, api_key, user, db_roundtrip
+    ):
         repo = APIRepo(session)
         await db_roundtrip()
 
-        result: APIKey | None = await repo.get_by_id(api_key.id)
+        result: APIKey | None = await repo.get_by_id(
+            key_id=api_key.id, owner_id=user.id
+        )
 
         assert isinstance(result, APIKey)
         assert result is not api_key
@@ -74,4 +78,13 @@ class TestAPIRepo:
 
         repo = APIRepo(session)
 
-        assert await repo.get_by_id(uuid7()) is None
+        assert await repo.get_by_id(key_id=uuid7(), owner_id=user.id) is None
+
+    async def test_get_api_key_by_id_returns_none_for_wrong_owner(
+        self, session, api_key
+    ):
+        from uuid import uuid7
+
+        repo = APIRepo(session)
+
+        assert await repo.get_by_id(key_id=api_key.id, owner_id=uuid7()) is None

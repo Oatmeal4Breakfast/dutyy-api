@@ -5,6 +5,7 @@ import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum, auto
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -33,6 +34,18 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class CredentialMethod(StrEnum):
+    API = auto()
+    SESSION = auto()
+
+
+@dataclass(frozen=True)
+class AuthContext:
+    user: UserSummary
+    method: CredentialMethod
+    credential_id: UUID
+
+
 @dataclass(frozen=True)
 class BrowserLogin:
     raw_token: str
@@ -45,6 +58,7 @@ class SessionState:
     user_summary: UserSummary
     idle_expires_at: datetime
     absolute_expires_at: datetime
+    session_id: UUID
 
 
 class AuthenticationFailed(Exception):
@@ -262,6 +276,7 @@ class AuthService:
             user_summary=user.to_summary(),
             idle_expires_at=session.idle_expires_at,
             absolute_expires_at=session.absolute_expires_at,
+            session_id=session.id,
         )
 
     def _subject_from_token(self, token: str) -> UUID | None:

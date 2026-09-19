@@ -5,13 +5,21 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from src.api.deps import get_current_user, get_project_service
+from src.api.deps import get_auth_context, get_project_service
+from src.config import WebSessionConfig
 from src.domain.dutyy import DutyyStatus
 from src.domain.project import ProjectStatus, PublishingStatus
 from src.main import create_app
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
-from tests.conftest import make_project_service, make_user
+from src.service.auth_service import AuthContext, CredentialMethod
+from tests.conftest import (
+    make_api_service,
+    make_auth_service,
+    make_project_service,
+    make_user,
+    make_user_service,
+)
 
 
 @pytest.fixture
@@ -20,16 +28,26 @@ def project_service(session, event_bus):
 
 
 @pytest.fixture
-def app(project_service) -> Iterator[FastAPI]:
+def app(project_service, session, event_bus) -> Iterator[FastAPI]:
     app = create_app()
     app.dependency_overrides[get_project_service] = lambda: project_service
+    app.state.auth_service = make_auth_service(session, event_bus)
+    app.state.api_service = make_api_service(session, event_bus)
+    app.state.user_service = make_user_service(session, event_bus)
+    app.state.web_session_config = WebSessionConfig(
+        cookie_name="dutyy-test-session", secure=False
+    )
     yield app
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def as_user(app, user) -> FastAPI:
-    app.dependency_overrides[get_current_user] = lambda: user
+    app.dependency_overrides[get_auth_context] = lambda: AuthContext(
+        user=user.to_summary(),
+        method=CredentialMethod.SESSION,
+        credential_id=user.id,
+    )
     return app
 
 
@@ -184,7 +202,11 @@ class TestProjectRouter:
 
     async def test_cross_owner_project_is_not_found(self, client, app, project):
         other_user = make_user(email="other@example.com")
-        app.dependency_overrides[get_current_user] = lambda: other_user
+        app.dependency_overrides[get_auth_context] = lambda: AuthContext(
+            user=other_user.to_summary(),
+            method=CredentialMethod.SESSION,
+            credential_id=other_user.id,
+        )
 
         response = await client.get(f"{self._PROJECTS_URL}/{project.id}")
 

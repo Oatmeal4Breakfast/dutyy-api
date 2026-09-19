@@ -9,16 +9,22 @@ from pydantic import BaseModel, EmailStr
 
 from src.api.deps import (
     get_api_service,
+    get_auth_context,
     get_auth_service,
-    get_current_user,
     get_device_auth_service,
     get_web_session_config,
 )
 from src.config import WebSessionConfig
 from src.domain.device_auth import KeyLifetime
-from src.domain.user import User, UserSummary
+from src.domain.user import UserSummary
 from src.service.api_service import APIService
-from src.service.auth_service import AuthService, BrowserLogin, SessionState
+from src.service.auth_service import (
+    AuthContext,
+    AuthService,
+    BrowserLogin,
+    CredentialMethod,
+    SessionState,
+)
 from src.service.device_auth_service import (
     DeviceAuthError,
     DeviceAuthService,
@@ -102,6 +108,7 @@ AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 DeviceAuthServiceDep = Annotated[DeviceAuthService, Depends(get_device_auth_service)]
 APIServiceDep = Annotated[APIService, Depends(get_api_service)]
 WebSessionConfigDep = Annotated[WebSessionConfig, Depends(get_web_session_config)]
+AuthCTXDep = Annotated[AuthContext, Depends(get_auth_context)]
 
 
 @router.post(path="/set-password", status_code=204)
@@ -243,10 +250,15 @@ async def poll(
 async def approve_device(
     request: DeviceAuthApproveRequest,
     service: DeviceAuthServiceDep,
-    user: Annotated[User, Depends(get_current_user)],
+    ctx: AuthCTXDep,
 ):
+    if ctx.method != CredentialMethod.SESSION:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="session authentication required",
+        )
     result: DeviceCode | DeviceAuthError = await service.approve(
-        request.user_code, user_id=user.id
+        request.user_code, user_id=ctx.user.id
     )
 
     if isinstance(result, DeviceAuthError):

@@ -85,6 +85,12 @@ class UserService:
                 except DomainValidationError as e:
                     errors.extend(e.errors)
 
+            if changes.email is not None:
+                try:
+                    user.update_email(changes.email)
+                except DomainValidationError as e:
+                    errors.extend(e.errors)
+
             if changes.status is not None:
                 try:
                     user.update_status(changes.status)

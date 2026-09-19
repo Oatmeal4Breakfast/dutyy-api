@@ -85,8 +85,10 @@ class APIRepo:
 
         return result.scalars().one_or_none()
 
-    async def get_by_id(self, key_id: UUID) -> APIKey | None:
-        stmt: Select[tuple[APIKey]] = select(APIKey).where(APIKey.id == key_id)
+    async def get_by_id(self, key_id: UUID, owner_id: UUID) -> APIKey | None:
+        stmt: Select[tuple[APIKey]] = select(APIKey).where(
+            APIKey.id == key_id, APIKey.user_id == owner_id
+        )
 
         try:
             result: Result[tuple[APIKey]] = await self._session.execute(stmt)

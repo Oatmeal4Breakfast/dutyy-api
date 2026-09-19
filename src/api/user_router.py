@@ -7,8 +7,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_current_user, get_user_service
+from src.api.deps import get_auth_context, get_user_service
 from src.domain.user import UserStatus, UserSummary, UserUpdateFields
+from src.service.auth_service import AuthContext
 from src.service.user_service import UserService
 
 
@@ -22,16 +23,10 @@ class UserUpdateRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     email: str | None = None
-    status: UserStatus | None = None
 
     @property
     def is_empty(self) -> bool:
-        return (
-            self.first_name is None
-            and self.last_name is None
-            and self.email is None
-            and self.status is None
-        )
+        return self.first_name is None and self.last_name is None and self.email is None
 
 
 class UserResponse(BaseModel):
@@ -49,14 +44,12 @@ class UserResponse(BaseModel):
 router = APIRouter(prefix="/dutyy/api/v1", tags=["Users"])
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-CurrentUserDep = Annotated[UserSummary, Depends(get_current_user)]
+AuthCtxDep = Annotated[AuthContext, Depends(get_auth_context)]
 
 
-@router.get(path="/users/{user_id}", response_model=UserResponse)
-async def get_user_by_id(
-    user_id: UUID, service: UserServiceDep, current_user: CurrentUserDep
-) -> UserResponse:
-    user: UserSummary = await service.get_user_by_id(user_id)
+@router.get(path="/users/me", response_model=UserResponse)
+async def get_user_by_id(service: UserServiceDep, ctx: AuthCtxDep) -> UserResponse:
+    user: UserSummary = await service.get_user_by_id(user_id=ctx.user.id)
     return UserResponse.model_validate(user)
 
 
@@ -68,36 +61,36 @@ async def create_user(user: CreateUserRequest, service: UserServiceDep) -> UserR
     return UserResponse.model_validate(new_user)
 
 
-@router.get(path="/users", response_model=list[UserResponse])
-async def get_all_users(
-    service: UserServiceDep,
-    current_user: CurrentUserDep,
-    page: int = 1,
-    page_size: int = 100,
-) -> list[UserResponse]:
-    users: list[UserSummary] = await service.get_all_users(
-        page=page, page_size=page_size
-    )
-    return [UserResponse.model_validate(user) for user in users]
+# @router.get(path="/users", response_model=list[UserResponse])
+# async def get_all_users(
+#     service: UserServiceDep,
+#     ctx: AuthCtxDep,
+#     page: int = 1,
+#     page_size: int = 100,
+# ) -> list[UserResponse]:
+#     users: list[UserSummary] = await service.get_all_users(
+#         page=page, page_size=page_size
+#     )
+#     return [UserResponse.model_validate(user) for user in users]
 
 
-@router.patch(path="/users/{user_id}", response_model=UserResponse)
+@router.patch(path="/users/me", response_model=UserResponse)
 async def update_user(
-    user_id: UUID,
-    current_user: CurrentUserDep,
+    ctx: AuthCtxDep,
     payload: UserUpdateRequest,
     service: UserServiceDep,
 ) -> UserResponse:
+
     if payload.is_empty:
         raise HTTPException(status_code=400, detail="no fields provided to update")
 
     updated: UserSummary = await service.update_user(
-        user_id=user_id,
+        user_id=ctx.user.id,
         changes=(
             UserUpdateFields(
                 first_name=payload.first_name,
                 last_name=payload.last_name,
-                status=payload.status,
+                email=payload.email,
             )
         ),
     )
