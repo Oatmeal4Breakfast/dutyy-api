@@ -139,7 +139,10 @@ async def login(
         httponly=True,
         samesite="lax",
     )
+
     response.headers["Cache-Control"] = "no-store"
+    response.headers["X-CSRF-Token"] = login.session.csrf_token
+
     return LoginResponse(user_summary=login.user_summary)
 
 
@@ -179,6 +182,8 @@ async def get_user_session(
         raise session_exception
 
     response.headers["Cache-Control"] = "no-store"
+    response.headers["X-CSRF-Token"] = session_state.csrf_token
+
     return SessionStateResponse(
         user_summary=session_state.user_summary,
         idle_expires_at=session_state.idle_expires_at,
