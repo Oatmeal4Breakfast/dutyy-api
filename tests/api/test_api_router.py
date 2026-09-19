@@ -25,6 +25,7 @@ def app(session, event_bus) -> FastAPI:
         session, event_bus
     )
     app.dependency_overrides[get_auth_context] = _deny_auth_context
+    app.state.allowed_origins = frozenset({"http://test"})
     yield app
     app.dependency_overrides.clear()
 
@@ -54,7 +55,9 @@ def as_api_key(app, user) -> FastAPI:
 @pytest.fixture
 async def client(app):
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Origin": "http://test"},
     ) as c:
         yield c
 

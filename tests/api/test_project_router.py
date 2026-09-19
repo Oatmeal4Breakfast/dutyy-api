@@ -55,7 +55,9 @@ def as_user(app, user) -> FastAPI:
 @pytest.fixture
 async def client(app):
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Origin": "http://test"},
     ) as test_client:
         yield test_client
 

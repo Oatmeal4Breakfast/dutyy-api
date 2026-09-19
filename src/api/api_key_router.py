@@ -8,7 +8,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_api_service, require_session
+from src.api.deps import (
+    get_api_service,
+    require_allowed_origin,
+    require_csrf_token,
+    require_session,
+)
 from src.domain.api import APIKeyStatus, APIKeySummary
 from src.service.api_service import APIService
 from src.service.auth_service import AuthContext
@@ -50,6 +55,8 @@ router = APIRouter(
 
 APIServiceDep = Annotated[APIService, Depends(get_api_service)]
 SessionAuthDep = Annotated[AuthContext, Depends(require_session)]
+OriginDep = Annotated[None, Depends(require_allowed_origin)]
+CSRFDep = Annotated[None, Depends(require_csrf_token)]
 
 
 @router.post(path="", status_code=201)
@@ -57,6 +64,8 @@ async def issue_new_key(
     session: SessionAuthDep,
     request: IssueKeyRequest,
     service: APIServiceDep,
+    _: OriginDep,
+    __: CSRFDep,
 ):
 
     raw_key: str = await service.issue_new_key(
@@ -68,7 +77,10 @@ async def issue_new_key(
 
 
 @router.get(path="", response_model=list[APIKeyResponse])
-async def get_api_keys(session: SessionAuthDep, service: APIServiceDep):
+async def get_api_keys(
+    session: SessionAuthDep,
+    service: APIServiceDep,
+):
 
     keys: list[APIKeySummary] = await service.get_keys_by_user_id(
         user_id=session.user.id
@@ -81,5 +93,7 @@ async def delete_key(
     session: SessionAuthDep,
     service: APIServiceDep,
     key_id: UUID,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     await service.revoke(user_id=session.user.id, key_id=key_id)

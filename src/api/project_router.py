@@ -5,7 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, ConfigDict
 
-from src.api.deps import get_auth_context, get_project_service
+from src.api.deps import (
+    get_auth_context,
+    get_project_service,
+    require_allowed_origin,
+    require_csrf_token,
+)
 from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.project import Project, ProjectStatus, PublishingStatus
 from src.service.auth_service import AuthContext
@@ -76,13 +81,19 @@ router = APIRouter(prefix="/dutyy/api/v1", tags=["Projects", "Dutyy"])
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 AuthCtxDep = Annotated[AuthContext, Depends(get_auth_context)]
+OriginDep = Annotated[None, Depends(require_allowed_origin)]
+CSRFDep = Annotated[None, Depends(require_csrf_token)]
 
 
 @router.post(
     "/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_project(
-    payload: CreateProjectRequest, ctx: AuthCtxDep, service: ProjectServiceDep
+    payload: CreateProjectRequest,
+    ctx: AuthCtxDep,
+    service: ProjectServiceDep,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     project: Project = await service.create_project_draft(
         project_name=payload.name, owner_id=ctx.user.id
@@ -111,6 +122,8 @@ async def patch_project(
     ctx: AuthCtxDep,
     service: ProjectServiceDep,
     payload: EditProjectRequest,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     if payload.is_empty:
         raise HTTPException(status_code=400, detail="no fields provided to update")
@@ -125,7 +138,11 @@ async def patch_project(
 
 @router.post("/projects/{project_id}/publish", status_code=status.HTTP_204_NO_CONTENT)
 async def publish_project(
-    project_id: UUID, ctx: AuthCtxDep, service: ProjectServiceDep
+    project_id: UUID,
+    ctx: AuthCtxDep,
+    service: ProjectServiceDep,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     await service.publish_project(project_id=project_id, owner_id=ctx.user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -133,7 +150,11 @@ async def publish_project(
 
 @router.post("/projects/{project_id}/unpublish", response_model=ProjectResponse)
 async def unpublish_project(
-    project_id: UUID, ctx: AuthCtxDep, service: ProjectServiceDep
+    project_id: UUID,
+    ctx: AuthCtxDep,
+    service: ProjectServiceDep,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     return ProjectResponse.model_validate(
         await service.unpublish_project(project_id=project_id, owner_id=ctx.user.id)
@@ -150,6 +171,8 @@ async def add_dutyy(
     service: ProjectServiceDep,
     project_id: UUID,
     payload: CreateDutyyRequest,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     dutyy: Dutyy = await service.add_dutyy(
         dutyy_title=payload.title,
@@ -165,7 +188,12 @@ async def add_dutyy(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_dutyy(
-    ctx: AuthCtxDep, service: ProjectServiceDep, project_id: UUID, dutyy_id: UUID
+    ctx: AuthCtxDep,
+    service: ProjectServiceDep,
+    project_id: UUID,
+    dutyy_id: UUID,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     await service.remove_dutyy(
         dutyy_id=dutyy_id, project_id=project_id, owner_id=ctx.user.id
@@ -180,6 +208,8 @@ async def patch_dutyy(
     payload: EditDutyyRequest,
     service: ProjectServiceDep,
     ctx: AuthCtxDep,
+    _: OriginDep,
+    __: CSRFDep,
 ):
     if payload.is_empty:
         raise HTTPException(status_code=400, detail="no fields provided to update")
