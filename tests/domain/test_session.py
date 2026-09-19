@@ -15,6 +15,7 @@ def make_web_session(**kwargs) -> WebSession:
     defaults: dict[str, Any] = {
         "user_id": _DEFAULT_USER_ID,
         "token_hash": "hashed_token_abc123",
+        "csrf_token": "csrf_token_abc123",
         "absolute_expires_at": now + timedelta(minutes=15),
         "idle_expires_at": now + timedelta(minutes=5),
         "last_seen_at": now,
@@ -35,6 +36,11 @@ def test_create_web_session_success() -> None:
 def test_create_web_session_empty_token_hash_fails() -> None:
     with pytest.raises(DomainValidationError):
         make_web_session(token_hash="")
+
+
+def test_create_web_session_empty_csrf_token_fails() -> None:
+    with pytest.raises(DomainValidationError):
+        make_web_session(csrf_token="")
 
 
 def test_web_session_unique_ids() -> None:
@@ -153,6 +159,8 @@ def test_issue_success() -> None:
     raw, session = WebSession.issue(user_id=_DEFAULT_USER_ID, policy=policy, now=now)
 
     assert WebSession.hash_token(raw) == session.token_hash
+    assert session.csrf_token
+    assert len(session.csrf_token) <= 64
 
     assert session.user_id == _DEFAULT_USER_ID
     assert session.last_seen_at == now
