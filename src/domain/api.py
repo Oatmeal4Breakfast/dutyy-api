@@ -79,7 +79,7 @@ class APIKey(Base):
         return hashlib.sha256(raw_key.encode()).hexdigest()
 
     def touch(self) -> bool:
-        now: datetime = datetime.now()
+        now: datetime = datetime.now(UTC)
 
         if self.last_used is not None and (now - self.last_used) < timedelta(minutes=5):
             return False

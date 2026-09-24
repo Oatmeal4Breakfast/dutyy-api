@@ -87,11 +87,53 @@ def test_mark_inactive_changes_status() -> None:
     assert api_key.status == APIKeyStatus.INACTIVE
 
 
-def test_issue_success(user) -> None:
+def test_issue_success() -> None:
     raw_key, key = APIKey.issue(
-        user_id=user.id, name="macbook_pro", ttl=timedelta(days=90)
+        user_id=uuid7(), name="macbook_pro", ttl=timedelta(days=90)
     )
     now = datetime.now(UTC)
     assert isinstance(raw_key, str)
     assert isinstance(key, APIKey)
     assert now - key.created_date < timedelta(seconds=0.01)
+
+
+def test_touch_first_use_sets_last_used() -> None:
+    api_key = make_api_key()
+    assert api_key.last_used is None
+
+    assert api_key.touch() is True
+
+    assert api_key.last_used is not None
+    assert api_key.last_used.tzinfo is not None
+    assert datetime.now(UTC) - api_key.last_used < timedelta(seconds=1)
+
+
+def test_touch_throttled_within_interval() -> None:
+    api_key = make_api_key()
+    first = datetime.now(UTC)
+    api_key.last_used = first
+
+    assert api_key.touch() is False
+
+    assert api_key.last_used == first
+
+
+def test_touch_updates_after_interval() -> None:
+    api_key = make_api_key()
+    api_key.last_used = datetime.now(UTC) - timedelta(minutes=5, seconds=1)
+
+    assert api_key.touch() is True
+
+    assert api_key.last_used is not None
+    assert datetime.now(UTC) - api_key.last_used < timedelta(seconds=1)
+
+
+def test_touch_sets_timezone_aware_timestamp() -> None:
+    api_key = make_api_key()
+    api_key.last_used = datetime.now(UTC) - timedelta(minutes=10)
+
+    api_key.touch()
+
+    assert api_key.last_used is not None
+    assert api_key.last_used.tzinfo is not None
+    assert api_key.last_used.utcoffset() is not None
