@@ -57,5 +57,18 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  caddy:
+    image: caddy:2-alpine
+    container_name: dutyy-dev-caddy
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - app
+
 volumes:
   dutyy_db_data:

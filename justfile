@@ -13,10 +13,12 @@ setup:
   uvx pre-commit install
 
 test *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
     docker compose -f docker-compose.test.yml down --remove-orphans
     docker compose -f docker-compose.test.yml up -d --wait
-    -uv run pytest {{args}}
-    docker compose -f docker-compose.test.yml down
+    trap 'docker compose -f docker-compose.test.yml down' EXIT
+    uv run pytest {{args}}
 
 dev:
     docker compose -f docker-compose.dev.yml up -d

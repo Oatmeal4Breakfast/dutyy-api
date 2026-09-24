@@ -1,0 +1,12 @@
+:80 {
+	# Browser API calls. Preserve the full path: FastAPI expects /dutyy/api/*.
+	handle /dutyy/api/* {
+		reverse_proxy app:8000
+	}
+
+	# Everything else is the frontend: pages, JS/CSS modules, and Vite HMR.
+	# Vite runs on the host in the separate frontend repo, not in Compose.
+	handle {
+		reverse_proxy host.docker.internal:5173
+	}
+}
