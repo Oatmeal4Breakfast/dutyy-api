@@ -50,9 +50,9 @@ class APIService:
             ):
                 return None
 
-            key.touch()
-            await uow.api.update(key)
-            await uow.commit()
+            if key.touch():
+                await uow.api.update(key)
+                await uow.commit()
 
         return key
 

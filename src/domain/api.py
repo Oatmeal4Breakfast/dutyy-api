@@ -67,7 +67,7 @@ class APIKey(Base):
 
     @classmethod
     def issue(cls, user_id: UUID, name: str, ttl: timedelta) -> tuple[str, "APIKey"]:
-        raw_key: str = secrets.token_urlsafe(32)
+        raw_key: str = f"dty_{secrets.token_urlsafe(32)}"
         hashed_key: str = cls.hash_key(raw_key)
         now: datetime = datetime.now(UTC)
         return raw_key, cls(
@@ -78,8 +78,13 @@ class APIKey(Base):
     def hash_key(raw_key: str) -> str:
         return hashlib.sha256(raw_key.encode()).hexdigest()
 
-    def touch(self) -> None:
-        self.last_used = datetime.now(UTC)
+    def touch(self) -> bool:
+        now: datetime = datetime.now()
+
+        if self.last_used is not None and (now - self.last_used) < timedelta(minutes=5):
+            return False
+        self.last_used = now
+        return True
 
     def mark_inactive(self) -> None:
         self.status = APIKeyStatus.INACTIVE
