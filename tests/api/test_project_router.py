@@ -281,4 +281,4 @@ class TestProjectRouter:
         )
 
         assert response.status_code == 422
-        assert response.json() == {"errors": ["project_not_in_draft_mode"]}
+        assert response.json() == {"detail": ["project_not_in_draft_mode"]}
