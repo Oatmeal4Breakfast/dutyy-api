@@ -12,7 +12,7 @@ from src.domain.user import UserStatus
 from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
 from src.repository.web_session_repo import WebSessionRepo
-from src.service.auth_service import BrowserLogin
+from src.service.auth_service import BrowserLogin, validate_password
 from tests.conftest import make_auth_service
 
 _hasher = PasswordHash.recommended()
@@ -49,12 +49,12 @@ class TestAuthService:
 
         auth_service = make_auth_service(session, event_bus)
 
-        await auth_service.set_password(raw_token, "s3cret-pass")
+        await auth_service.set_password(raw_token, "Valid-Passw0rd!")
 
         reloaded = await UserRepo(session).get_by_id(user_id)
         assert reloaded is not None
         assert reloaded.password_hash is not None
-        assert await auth_service.verify_hash("s3cret-pass", reloaded.password_hash)
+        assert await auth_service.verify_hash("Valid-Passw0rd!", reloaded.password_hash)
 
         consumed = await PasswordSetTokenRepo(session).get_by_hash(
             token_hash=token_hash
@@ -66,7 +66,7 @@ class TestAuthService:
         auth_service = make_auth_service(session, event_bus)
 
         with pytest.raises(DomainValidationError):
-            await auth_service.set_password("does-not-exist", "whatever")
+            await auth_service.set_password("does-not-exist", "Valid-Passw0rd!")
 
     async def test_set_password_expired_token_raises(self, session, event_bus, user):
         raw_token, token = PasswordSetToken.issue(
@@ -77,7 +77,7 @@ class TestAuthService:
         auth_service = make_auth_service(session, event_bus)
 
         with pytest.raises(DomainValidationError):
-            await auth_service.set_password(raw_token, "s3cret-pass")
+            await auth_service.set_password(raw_token, "Valid-Passw0rd!")
 
     async def test_set_password_already_used_token_raises(
         self, session, event_bus, user
@@ -91,7 +91,7 @@ class TestAuthService:
         auth_service = make_auth_service(session, event_bus)
 
         with pytest.raises(DomainValidationError):
-            await auth_service.set_password(raw_token, "s3cret-pass")
+            await auth_service.set_password(raw_token, "Valid-Passw0rd!")
 
     async def test_authenticate_user_valid_credentials(self, session, event_bus, user):
         user.update_password_hash(_hasher.hash("correct-horse"))
@@ -290,3 +290,61 @@ class TestAuthService:
         result = await auth_service._authenticate_user(user.email, "anything")
 
         assert result is None
+
+
+class TestValidatePassword:
+    @pytest.mark.parametrize(
+        "password",
+        [
+            "Valid-Passw0rd!",
+            "Another-Str0ng1#",
+            "aA1!" + "x" * 8,
+        ],
+    )
+    def test_strong_passwords_pass(self, password):
+        validate_password(password)
+
+    @pytest.mark.parametrize(
+        "password, expected",
+        [
+            ("Short-1!", "short password"),
+            ("lowercase-passw0rd!", "upper"),
+            ("UPPERCASE-PASSW0RD!", "lower"),
+            ("NoNumber-Password!", "number"),
+            ("NoSymbolPassw0rd", "symbol"),
+            ("short", "short password"),
+            ("x" * 129, "long password"),
+        ],
+    )
+    def test_weak_passwords_raise_with_missing_reason(self, password, expected):
+        with pytest.raises(DomainValidationError) as exc_info:
+            validate_password(password)
+
+        assert any(expected in err for err in exc_info.value.errors)
+
+
+@pytest.mark.integration
+class TestSetPasswordValidation:
+    async def test_set_password_weak_password_raises_and_leaves_token_unused(
+        self, session, event_bus, user
+    ):
+        raw_token, token = PasswordSetToken.issue(
+            user_id=user.id, ttl=timedelta(minutes=30)
+        )
+        token_hash = token.token_hash
+        await PasswordSetTokenRepo(session).add(token)
+
+        auth_service = make_auth_service(session, event_bus)
+
+        with pytest.raises(DomainValidationError):
+            await auth_service.set_password(raw_token, "weak")
+
+        untouched = await PasswordSetTokenRepo(session).get_by_hash(
+            token_hash=token_hash
+        )
+        assert untouched is not None
+        assert not untouched.is_used()
+
+        reloaded = await UserRepo(session).get_by_id(user.id)
+        assert reloaded is not None
+        assert reloaded.password_hash is None
