@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI):
 async def domain_validation_exception_handler(
     request: Request, exc: DomainValidationError
 ) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"errors": exc.errors})
+    return JSONResponse(status_code=422, content={"detail": exc.errors})
 
 
 async def user_already_exist_handler(

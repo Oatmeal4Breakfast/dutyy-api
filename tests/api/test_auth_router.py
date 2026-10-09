@@ -305,14 +305,14 @@ class TestSetPasswordRouter:
 
         assert resp.status_code == 422
 
-    async def test_unknown_token_returns_422_errors(self, client):
+    async def test_unknown_token_returns_422_detail(self, client):
         resp = await client.post(
             self.SET_PASSWORD,
             json={"raw_token": "does-not-exist", "new_password": "Valid-Passw0rd!"},
         )
 
         assert resp.status_code == 422
-        assert "errors" in resp.json()
+        assert resp.json() == {"detail": ["PasswordSetToken not found"]}
 
     async def test_valid_password_sets_hash_and_consumes_token(
         self, client, session, user
