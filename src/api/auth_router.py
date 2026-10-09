@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from src.api.deps import (
     get_api_service,
@@ -18,6 +18,7 @@ from src.api.deps import (
 )
 from src.config import WebSessionConfig
 from src.domain.device_auth import KeyLifetime
+from src.domain.exceptions import DomainValidationError
 from src.domain.user import UserSummary
 from src.service.api_service import APIService
 from src.service.auth_service import (
@@ -26,6 +27,7 @@ from src.service.auth_service import (
     BrowserLogin,
     CredentialMethod,
     SessionState,
+    validate_password,
 )
 from src.service.device_auth_service import (
     DeviceAuthError,
@@ -41,7 +43,16 @@ if TYPE_CHECKING:
 
 class SetPasswordRequest(BaseModel):
     raw_token: str
-    new_password: str
+    new_password: str = Field(min_length=12, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        try:
+            validate_password(value)
+        except DomainValidationError as e:
+            raise ValueError(", ".join(e.errors)) from e
+        return value
 
 
 class LoginRequest(BaseModel):

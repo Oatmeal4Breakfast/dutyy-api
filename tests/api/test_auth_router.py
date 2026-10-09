@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Iterator
 
 import pytest
@@ -15,8 +16,10 @@ from src.api.deps import (
 )
 from src.config import WebSessionConfig
 from src.domain.device_auth import DeviceCode, DeviceCodeStatus
+from src.domain.token import PasswordSetToken
 from src.main import create_app
 from src.repository.device_auth_repo import DeviceAuthRepo
+from src.repository.token_repo import PasswordSetTokenRepo
 from src.repository.user_repo import UserRepo
 from src.service.auth_service import AuthContext, CredentialMethod
 from tests.conftest import (
@@ -281,3 +284,58 @@ class TestBrowserAuthRouter:
         resp = await client.post(self.LOGOUT)
 
         assert resp.status_code == 401
+
+
+class TestSetPasswordRouter:
+    SET_PASSWORD = "/dutyy/api/v1/auth/set-password"
+
+    async def test_short_password_returns_422(self, client):
+        resp = await client.post(
+            self.SET_PASSWORD,
+            json={"raw_token": "anything", "new_password": "weak"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_long_but_weak_password_returns_422(self, client):
+        resp = await client.post(
+            self.SET_PASSWORD,
+            json={"raw_token": "anything", "new_password": "lowercase-passw0rd!"},
+        )
+
+        assert resp.status_code == 422
+
+    async def test_unknown_token_returns_422_errors(self, client):
+        resp = await client.post(
+            self.SET_PASSWORD,
+            json={"raw_token": "does-not-exist", "new_password": "Valid-Passw0rd!"},
+        )
+
+        assert resp.status_code == 422
+        assert "errors" in resp.json()
+
+    async def test_valid_password_sets_hash_and_consumes_token(
+        self, client, session, user
+    ):
+        raw_token, token = PasswordSetToken.issue(
+            user_id=user.id, ttl=timedelta(minutes=30)
+        )
+        token_hash = token.token_hash
+        await PasswordSetTokenRepo(session).add(token)
+
+        resp = await client.post(
+            self.SET_PASSWORD,
+            json={"raw_token": raw_token, "new_password": "Valid-Passw0rd!"},
+        )
+
+        assert resp.status_code == 204
+
+        reloaded = await UserRepo(session).get_by_id(user.id)
+        assert reloaded is not None
+        assert reloaded.password_hash is not None
+
+        consumed = await PasswordSetTokenRepo(session).get_by_hash(
+            token_hash=token_hash
+        )
+        assert consumed is not None
+        assert consumed.is_used()

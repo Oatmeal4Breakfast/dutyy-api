@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -66,6 +67,28 @@ class AuthenticationFailed(Exception):
         super().__init__(f"user with id {user_id} has no password saved")
 
 
+_REG_PATTERNS: dict[str, re.Pattern[str]] = {
+    "upper": re.compile(r"[A-Z]"),
+    "lower": re.compile(r"[a-z]"),
+    "symbol": re.compile(r"[^A-Z0-9a-z]"),
+    "number": re.compile(r"[0-9]"),
+}
+
+
+def validate_password(password: str) -> None:
+    missing: list[str] = []
+    if len(password) < 12:
+        missing.append("short password")
+    if len(password) > 128:
+        missing.append("long password")
+    for name, pattern in _REG_PATTERNS.items():
+        if pattern.search(password) is None:
+            missing.append(name)
+
+    if missing:
+        raise DomainValidationError("Password", [f"missing: {' '.join(missing)}"])
+
+
 class AuthService:
     def __init__(
         self,
@@ -87,6 +110,7 @@ class AuthService:
         )
 
     async def set_password(self, raw_token: str, new_password: str) -> None:
+        validate_password(new_password)
         token_hash: str = hashlib.sha256(raw_token.encode()).hexdigest()
         async with self._uow_factory() as uow:
             token: PasswordSetToken | None = await uow.token.get_by_hash(
