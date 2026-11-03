@@ -29,6 +29,12 @@ class DutyyNotFoundError(Exception):
 
 
 @dataclass(frozen=True)
+class CreateDutyyCommand:
+    title: str
+    details: str | None = None
+
+
+@dataclass(frozen=True)
 class EditDutyyCommand:
     title: str | None = None
     details: str | None = None
@@ -49,13 +55,21 @@ class ProjectService:
         self._uow_factory: Callable = uow_factory
 
     async def create_project_draft(
-        self, project_name: str, owner_id: UUID, dutyys: list[Dutyy] | None = None
+        self,
+        project_name: str,
+        owner_id: UUID,
+        dutyys: list[CreateDutyyCommand] | None = None,
     ) -> Project:
         project = Project(
             name=project_name,
             owner_id=owner_id,
-            dutyys=dutyys if dutyys is not None else [],
         )
+
+        project.dutyys: list[Dutyy] = [
+            Dutyy(title=d.title, details=d.details, project_id=project.id)
+            for d in (dutyys or [])
+        ]
+
         async with self._uow_factory() as uow:
             await uow.project.add(project)
             await uow.commit()

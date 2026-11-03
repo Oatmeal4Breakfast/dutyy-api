@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.api.deps import (
     get_auth_context,
@@ -15,14 +15,11 @@ from src.domain.dutyy import Dutyy, DutyyStatus
 from src.domain.project import Project, ProjectStatus, PublishingStatus
 from src.service.auth_service import AuthContext
 from src.service.project_service import (
+    CreateDutyyCommand,
     EditDutyyCommand,
     EditProjectCommand,
     ProjectService,
 )
-
-
-class CreateProjectRequest(BaseModel):
-    name: str
 
 
 class EditProjectRequest(BaseModel):
@@ -37,6 +34,11 @@ class EditProjectRequest(BaseModel):
 class CreateDutyyRequest(BaseModel):
     title: str
     details: str | None = None
+
+
+class CreateProjectRequest(BaseModel):
+    name: str
+    dutyys: list[CreateDutyyRequest] = Field(default_factory=list)
 
 
 class EditDutyyRequest(BaseModel):
@@ -96,7 +98,11 @@ async def create_project(
     __: CSRFDep,
 ):
     project: Project = await service.create_project_draft(
-        project_name=payload.name, owner_id=ctx.user.id
+        project_name=payload.name,
+        owner_id=ctx.user.id,
+        dutyys=[
+            CreateDutyyCommand(title=d.title, details=d.details) for d in payload.dutyys
+        ],
     )
     return ProjectResponse.model_validate(project)
 
