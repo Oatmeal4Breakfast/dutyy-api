@@ -16,6 +16,7 @@ from src.domain.project import ProjectStatus, PublishingStatus
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
 from src.service.project_service import (
+    CreateDutyyCommand,
     DutyyNotFoundError,
     EditDutyyCommand,
     EditProjectCommand,
@@ -40,6 +41,29 @@ class TestProjectService:
         assert persisted.name == "new project"
         assert persisted.owner_id == user.id
         assert persisted.publishing_status == PublishingStatus.DRAFT
+
+    async def test_create_project_draft_persists_dutyys(
+        self, session, event_bus, user, db_roundtrip
+    ):
+        service = make_project_service(session, event_bus)
+
+        created = await service.create_project_draft(
+            "New Project",
+            user.id,
+            dutyys=[
+                CreateDutyyCommand(title=" First Dutyy ", details=" details "),
+                CreateDutyyCommand(title="Second Dutyy"),
+            ],
+        )
+
+        await db_roundtrip()
+        persisted = await ProjectRepo(session).get_by_id(created.id, user.id)
+
+        assert persisted is not None
+        assert [(d.title, d.details, d.project_id) for d in persisted.dutyys] == [
+            ("first dutyy", "details", persisted.id),
+            ("second dutyy", None, persisted.id),
+        ]
 
     async def test_publish_project_persists_status_and_fires_event(
         self, session, event_bus, project, dutyy, db_roundtrip

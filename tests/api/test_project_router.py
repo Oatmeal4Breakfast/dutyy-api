@@ -80,6 +80,27 @@ class TestProjectRouter:
         assert body["publishing_status"] == PublishingStatus.DRAFT
         assert body["dutyys"] == []
 
+    async def test_create_project_includes_dutyys(self, client, as_user):
+        response = await client.post(
+            self._PROJECTS_URL,
+            json={
+                "name": "New Project",
+                "dutyys": [
+                    {"title": " First Dutyy ", "details": " details "},
+                    {"title": "Second Dutyy"},
+                ],
+            },
+        )
+
+        assert response.status_code == 201
+        body = response.json()
+        assert [
+            (d["title"], d["details"], d["project_id"]) for d in body["dutyys"]
+        ] == [
+            ("first dutyy", "details", body["id"]),
+            ("second dutyy", None, body["id"]),
+        ]
+
     async def test_list_projects_includes_dutyys(
         self, client, as_user, project, project_service, db_roundtrip
     ):
