@@ -107,15 +107,19 @@ class WebSession(Base):
     def hash_token(raw_token: str) -> str:
         return hashlib.sha256(raw_token.encode()).hexdigest()
 
+    def should_touch(self, policy: SessionPolicy, now: datetime | None = None) -> bool:
+        if now is None:
+            now = datetime.now(UTC)
+
+        return self.is_active(now) and now - self.last_seen_at >= policy.touch_interval
+
     def touch(self, policy: SessionPolicy, now: datetime | None = None) -> None:
         if now is None:
             now = datetime.now(UTC)
         if not self.is_active(now):
             raise DomainValidationError("WebSession", [f"token {self.id} is inactive"])
 
-        throttle: timedelta = now - self.last_seen_at
-
-        if throttle < policy.touch_interval:
+        if not self.should_touch(policy, now):
             return
 
         extended_idle = now + policy.idle_ttl
