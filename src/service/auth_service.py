@@ -281,6 +281,22 @@ class AuthService:
             if user is None or user.status != UserStatus.ACTIVE:
                 return None
 
+            if session.should_touch(self.policy):
+                locked_session = await uow.web_session.get_token_hash_for_update(
+                    token_hash=token_hash
+                )
+
+                if locked_session is None or not locked_session.is_active():
+                    return None
+
+                previous_last_seen = session.last_seen_at
+                session.touch(self.policy)
+
+                if locked_session.last_seen_at != previous_last_seen:
+                    await uow.web_session.update(locked_session)
+                    await uow.commit()
+
+                session = locked_session
         return SessionState(
             user_summary=user.to_summary(),
             idle_expires_at=session.idle_expires_at,

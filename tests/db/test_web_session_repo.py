@@ -44,6 +44,25 @@ class TestWebSessionRepo:
 
         assert await repo.get_by_token_hash("does_not_exist") is None
 
+    async def test_get_token_hash_for_update_returns_session(
+        self, session, user, db_roundtrip
+    ):
+        repo = WebSessionRepo(session)
+        _, entity = make_web_session(user.id)
+        await repo.add(entity)
+
+        await db_roundtrip()
+        result = await repo.get_token_hash_for_update(entity.token_hash)
+
+        assert isinstance(result, WebSession)
+        assert result.token_hash == entity.token_hash
+        assert result.user_id == user.id
+
+    async def test_get_token_hash_for_update_not_found(self, session):
+        repo = WebSessionRepo(session)
+
+        assert await repo.get_token_hash_for_update("does_not_exist") is None
+
     async def test_update_persists_touch(self, session, user, db_roundtrip):
         repo = WebSessionRepo(session)
         _, entity = make_web_session(user.id)

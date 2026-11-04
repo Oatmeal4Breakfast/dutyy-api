@@ -35,6 +35,22 @@ class WebSessionRepo:
 
         return result.scalars().one_or_none()
 
+    async def get_token_hash_for_update(self, token_hash: str) -> WebSession | None:
+        stmt = (
+            select(WebSession)
+            .where(WebSession.token_hash == token_hash)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+        try:
+            result = await self._session.execute(stmt)
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        return result.scalars().one_or_none()
+
     async def add(self, entity: WebSession) -> None:
         self._session.add(entity)
 

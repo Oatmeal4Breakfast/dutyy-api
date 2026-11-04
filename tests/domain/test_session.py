@@ -101,6 +101,56 @@ def test_touch_within_throttle_idempotent() -> None:
     assert session.idle_expires_at == idle_before
 
 
+def test_should_touch_returns_false_before_touch_interval() -> None:
+    now_base = datetime.now(UTC)
+    session = make_web_session(
+        created_at=now_base,
+        last_seen_at=now_base,
+        idle_expires_at=now_base + timedelta(minutes=30),
+        absolute_expires_at=now_base + timedelta(hours=1),
+    )
+    policy = SessionPolicy(
+        idle_ttl=timedelta(minutes=30),
+        absolute_ttl=timedelta(days=7),
+        touch_interval=timedelta(minutes=5),
+    )
+
+    assert not session.should_touch(policy, now=now_base + timedelta(minutes=4))
+
+
+def test_should_touch_returns_true_at_exact_touch_interval() -> None:
+    now_base = datetime.now(UTC)
+    session = make_web_session(
+        created_at=now_base,
+        last_seen_at=now_base,
+        idle_expires_at=now_base + timedelta(minutes=30),
+        absolute_expires_at=now_base + timedelta(hours=1),
+    )
+    policy = SessionPolicy(
+        idle_ttl=timedelta(minutes=30),
+        absolute_ttl=timedelta(days=7),
+        touch_interval=timedelta(minutes=5),
+    )
+
+    assert session.should_touch(policy, now=now_base + policy.touch_interval)
+
+
+def test_should_touch_returns_false_for_inactive_session() -> None:
+    now_base = datetime.now(UTC)
+    session = make_web_session(
+        created_at=now_base - timedelta(minutes=10),
+        last_seen_at=now_base - timedelta(minutes=10),
+        idle_expires_at=now_base - timedelta(minutes=1),
+    )
+    policy = SessionPolicy(
+        idle_ttl=timedelta(minutes=30),
+        absolute_ttl=timedelta(days=7),
+        touch_interval=timedelta(minutes=5),
+    )
+
+    assert not session.should_touch(policy, now=now_base)
+
+
 def test_touch_cannot_exceed_absolute() -> None:
     now_base = datetime.now(UTC)
     session = make_web_session(

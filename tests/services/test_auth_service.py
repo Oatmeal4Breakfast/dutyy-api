@@ -164,6 +164,93 @@ class TestAuthService:
 
         assert await auth_service.get_session_user("not-a-real-token") is None
 
+    async def test_get_session_user_extends_idle_expiration_after_touch_interval(
+        self, session, event_bus, user, db_roundtrip
+    ):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login: BrowserLogin | None = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+
+        stored = await WebSessionRepo(session).get_by_token_hash(
+            WebSession.hash_token(login.raw_token)
+        )
+        assert stored is not None
+        previous_idle_expiration = stored.idle_expires_at
+        stored.last_seen_at = datetime.now(UTC) - timedelta(minutes=10)
+        await WebSessionRepo(session).update(stored)
+
+        state = await auth_service.get_session_user(login.raw_token)
+
+        assert state is not None
+        assert state.idle_expires_at > previous_idle_expiration
+
+        await db_roundtrip()
+        persisted = await WebSessionRepo(session).get_by_token_hash(
+            WebSession.hash_token(login.raw_token)
+        )
+        assert persisted is not None
+        assert persisted.idle_expires_at == state.idle_expires_at
+
+    async def test_get_session_user_does_not_touch_before_interval(
+        self, session, event_bus, user, db_roundtrip
+    ):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+        previous_last_seen = login.session.last_seen_at
+        previous_idle_expiration = login.session.idle_expires_at
+
+        state = await auth_service.get_session_user(login.raw_token)
+
+        assert state is not None
+        assert state.idle_expires_at == previous_idle_expiration
+
+        await db_roundtrip()
+        persisted = await WebSessionRepo(session).get_by_token_hash(
+            WebSession.hash_token(login.raw_token)
+        )
+        assert persisted is not None
+        assert persisted.last_seen_at == previous_last_seen
+        assert persisted.idle_expires_at == previous_idle_expiration
+
+    async def test_get_session_user_returns_none_if_session_revoked_while_locking(
+        self, session, event_bus, user, monkeypatch
+    ):
+        user.update_password_hash(_hasher.hash("correct-horse"))
+        await UserRepo(session).update(user)
+        auth_service = make_auth_service(session, event_bus)
+
+        login = await auth_service.login(
+            user_email=user.email, password="correct-horse"
+        )
+        assert login is not None
+        login.session.last_seen_at = datetime.now(UTC) - timedelta(minutes=10)
+        await WebSessionRepo(session).update(login.session)
+
+        async def revoke_before_return(repo, token_hash):
+            locked = await repo.get_by_token_hash(token_hash)
+            assert locked is not None
+            locked.revoke()
+            return locked
+
+        monkeypatch.setattr(
+            WebSessionRepo,
+            "get_token_hash_for_update",
+            revoke_before_return,
+        )
+
+        assert await auth_service.get_session_user(login.raw_token) is None
+
     async def test_get_session_user_revoked_returns_none(
         self, session, event_bus, user
     ):
