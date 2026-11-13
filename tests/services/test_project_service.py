@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid7
 
 import pytest
@@ -21,12 +21,45 @@ from src.service.project_service import (
     EditDutyyCommand,
     EditProjectCommand,
     ProjectNotFoundError,
+    ProjectService,
 )
 from tests.conftest import make_project_service
 
 
 @pytest.mark.integration
 class TestProjectService:
+    async def test_delete_project_returns_id_and_deletes_it(
+        self, session, event_bus, project, dutyy, db_roundtrip
+    ):
+        service = make_project_service(session, event_bus)
+
+        deleted_id = await service.delete_project_by_id(project.id, project.owner_id)
+
+        assert deleted_id == project.id
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id) is None
+        )
+        assert await DutyRepo(session).get_by_id(dutyy.id) is None
+
+    async def test_delete_unknown_project_returns_none(self, session, event_bus):
+        service = make_project_service(session, event_bus)
+
+        assert await service.delete_project_by_id(uuid7(), uuid7()) is None
+
+    async def test_delete_other_owners_project_returns_none(
+        self, session, event_bus, project, db_roundtrip
+    ):
+        service = make_project_service(session, event_bus)
+
+        assert await service.delete_project_by_id(project.id, uuid7()) is None
+
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id)
+            is not None
+        )
+
     async def test_create_project_draft_persists_project(
         self, session, event_bus, user, db_roundtrip
     ):
@@ -300,3 +333,28 @@ class TestProjectService:
 
         with pytest.raises(ProjectNotFoundError):
             await service.unpublish_project(uuid7(), uuid7())
+
+
+class TestDeleteProjectTransaction:
+    async def test_delete_project_commits_before_returning(self):
+        project_id, owner_id = uuid7(), uuid7()
+        uow = AsyncMock()
+        uow.__aenter__.return_value = uow
+        uow.project.delete_entity.return_value = project_id
+        service = ProjectService(uow_factory=Mock(return_value=uow))
+
+        assert await service.delete_project_by_id(project_id, owner_id) == project_id
+
+        uow.project.delete_entity.assert_awaited_once_with(project_id, owner_id)
+        uow.commit.assert_awaited_once()
+
+    async def test_delete_project_propagates_failure_without_committing(self):
+        uow = AsyncMock()
+        uow.__aenter__.return_value = uow
+        uow.project.delete_entity.side_effect = RuntimeError("delete failed")
+        service = ProjectService(uow_factory=Mock(return_value=uow))
+
+        with pytest.raises(RuntimeError, match="delete failed"):
+            await service.delete_project_by_id(uuid7(), uuid7())
+
+        uow.commit.assert_not_awaited()

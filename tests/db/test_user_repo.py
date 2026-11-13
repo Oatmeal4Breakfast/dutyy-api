@@ -89,7 +89,7 @@ class TestUserRepo:
         assert result is not None
         assert isinstance(result, User)
 
-        await repo.delete(user)
+        await repo.delete_entity(user)
 
         await db_roundtrip()
         result: User | None = await repo.get_by_id(user.id)

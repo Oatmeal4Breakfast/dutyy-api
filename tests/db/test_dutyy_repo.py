@@ -31,7 +31,7 @@ class TestDutyyRepo:
         assert len(get_all) == 1
         assert isinstance(get_all[0], Dutyy)
 
-        await repo.delete(dutyy)
+        await repo.delete_entity(dutyy)
 
         await db_roundtrip()
         result: list[Dutyy] = await repo.get_all()

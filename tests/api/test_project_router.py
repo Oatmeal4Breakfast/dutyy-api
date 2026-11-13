@@ -229,6 +229,101 @@ class TestProjectRouter:
 
         assert response.status_code == 401
 
+    async def test_delete_project_returns_empty_204_and_deletes_it(
+        self, client, as_user, project, dutyy, session, db_roundtrip
+    ):
+        response = await client.delete(f"{self._PROJECTS_URL}/{project.id}")
+
+        assert response.status_code == 204
+        assert response.content == b""
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id) is None
+        )
+        assert await DutyRepo(session).get_by_id(dutyy.id) is None
+
+    async def test_delete_unknown_project_returns_empty_204(self, client, as_user):
+        response = await client.delete(f"{self._PROJECTS_URL}/{uuid7()}")
+
+        assert response.status_code == 204
+        assert response.content == b""
+
+    async def test_delete_project_is_idempotent(self, client, as_user, project):
+        url = f"{self._PROJECTS_URL}/{project.id}"
+
+        first_response = await client.delete(url)
+        second_response = await client.delete(url)
+
+        assert first_response.status_code == second_response.status_code == 204
+        assert first_response.content == second_response.content == b""
+
+    async def test_delete_project_does_not_delete_other_owners_project(
+        self, client, app, project, session, db_roundtrip
+    ):
+        other_user = make_user(email="other@example.com")
+        app.dependency_overrides[get_auth_context] = lambda: AuthContext(
+            user=other_user.to_summary(),
+            method=CredentialMethod.SESSION,
+            credential_id=other_user.id,
+        )
+
+        response = await client.delete(f"{self._PROJECTS_URL}/{project.id}")
+
+        assert response.status_code == 204
+        assert response.content == b""
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id)
+            is not None
+        )
+
+    async def test_delete_project_requires_authentication(
+        self, client, project, session, db_roundtrip
+    ):
+        response = await client.delete(f"{self._PROJECTS_URL}/{project.id}")
+
+        assert response.status_code == 401
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id)
+            is not None
+        )
+
+    async def test_delete_project_rejects_invalid_id(self, client, as_user):
+        response = await client.delete(f"{self._PROJECTS_URL}/not-a-uuid")
+
+        assert response.status_code == 422
+
+    async def test_delete_project_requires_csrf_for_session_auth(
+        self, client, as_user, app, project, session, db_roundtrip
+    ):
+        del app.dependency_overrides[require_csrf_token]
+
+        response = await client.delete(f"{self._PROJECTS_URL}/{project.id}")
+
+        assert response.status_code == 403
+        assert response.json() == {"detail": "Invalid CSRF"}
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id)
+            is not None
+        )
+
+    async def test_delete_project_rejects_untrusted_origin(
+        self, client, as_user, project, session, db_roundtrip
+    ):
+        response = await client.delete(
+            f"{self._PROJECTS_URL}/{project.id}",
+            headers={"Origin": "http://untrusted.example"},
+        )
+
+        assert response.status_code == 403
+        await db_roundtrip()
+        assert (
+            await ProjectRepo(session).get_by_id(project.id, project.owner_id)
+            is not None
+        )
+
     async def test_cross_owner_project_is_not_found(self, client, app, project):
         other_user = make_user(email="other@example.com")
         app.dependency_overrides[get_auth_context] = lambda: AuthContext(
