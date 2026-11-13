@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, remove
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import selectinload
 
@@ -53,7 +53,7 @@ class ProjectRepo(AbstractRepository[Project]):
 
         return list(projects)
 
-    async def delete(self, entity: Project) -> None:
+    async def delete_entity(self, entity: Project) -> None:
         assert_managed(self._session, entity)
 
         try:

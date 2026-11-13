@@ -48,7 +48,7 @@ class DutyRepo(AbstractRepository[Dutyy]):
 
         return list(dutyys)
 
-    async def delete(self, entity: Dutyy) -> None:
+    async def delete_entity(self, entity: Dutyy) -> None:
         assert_managed(self._session, entity)
 
         try:
