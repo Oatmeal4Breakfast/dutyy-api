@@ -4,7 +4,9 @@ from typing import TYPE_CHECKING
 from uuid import uuid7
 
 import pytest
+from sqlalchemy import select, update
 
+from src.db.orm import project_user_table
 from src.domain.project import Project, ProjectStatus, PublishingStatus
 from src.repository.abstract_repo import DetachedEntityError
 from src.repository.dutyy_repo import DutyRepo
@@ -31,47 +33,85 @@ class TestProjectRepo:
 
         assert len(results) == 0
 
-    async def test_delete_project_success(self, session, project):
+    async def test_delete_project_success(self, session, project, db_roundtrip):
         repo = ProjectRepo(session)
+        other_project = make_project(project.owner_id, name="Keep Me")
+        await repo.add(other_project)
 
-        existing: list[Project] = await repo.get_all()
-        assert len(existing) == 1
-        assert isinstance(existing[0], Project)
+        deleted_id = await repo.delete_entity(project.id, project.owner_id)
 
-        await repo.delete(project)
-
-        results: list[Project] = await repo.get_all()
-
-        assert len(results) == 0
+        assert deleted_id == project.id
+        await db_roundtrip()
+        assert await repo.get_by_id(project.id, project.owner_id) is None
+        assert (
+            await repo.get_by_id(other_project.id, other_project.owner_id) is not None
+        )
 
     async def test_delete_project_cascades_to_its_dutyys(
         self, session, project, dutyy, db_roundtrip
     ):
-        """`Project.dutyys` is lazy="raise" + passive_deletes=True.
-
-        The ORM must not try to load the collection to cascade in Python -- the FK's
-        ondelete="CASCADE" removes the children.
-        """
+        """Statement-based deletion relies on the database FK cascade."""
         await db_roundtrip()
         repo = ProjectRepo(session)
 
-        loaded = await repo.get_by_id(project.id, project.owner_id)
-        assert loaded is not None
-
-        await repo.delete(loaded)
+        assert await repo.delete_entity(project.id, project.owner_id) == project.id
 
         await db_roundtrip()
         assert await repo.get_by_id(project.id, project.owner_id) is None
         assert await DutyRepo(session).get_by_id(dutyy.id) is None
 
-    async def test_delete_rejects_an_entity_this_session_does_not_manage(
+    async def test_delete_project_cascades_to_memberships(self, session, project):
+        repo = ProjectRepo(session)
+        stmt = select(project_user_table).where(
+            project_user_table.c.project_id == project.id
+        )
+        assert (await session.execute(stmt)).all()
+
+        await repo.delete_entity(project.id, project.owner_id)
+
+        assert (await session.execute(stmt)).all() == []
+
+    async def test_delete_unknown_project_returns_none(self, session, project):
+        repo = ProjectRepo(session)
+
+        assert await repo.delete_entity(uuid7(), project.owner_id) is None
+        assert await repo.get_by_id(project.id, project.owner_id) is not None
+
+    async def test_delete_project_scopes_to_owner(
+        self, session, project, dutyy, db_roundtrip
+    ):
+        repo = ProjectRepo(session)
+
+        assert await repo.delete_entity(project.id, uuid7()) is None
+
+        await db_roundtrip()
+        assert await repo.get_by_id(project.id, project.owner_id) is not None
+        assert await DutyRepo(session).get_by_id(dutyy.id) is not None
+
+    async def test_delete_project_twice_returns_none(self, session, project):
+        repo = ProjectRepo(session)
+
+        assert await repo.delete_entity(project.id, project.owner_id) == project.id
+        assert await repo.delete_entity(project.id, project.owner_id) is None
+
+    async def test_delete_checks_current_owner_after_an_earlier_read(
         self, session, project, db_roundtrip
     ):
         repo = ProjectRepo(session)
-        await db_roundtrip()
+        original_owner_id = project.owner_id
+        new_owner_id = uuid7()
+        assert await repo.get_by_id(project.id, original_owner_id) is not None
+        await session.execute(
+            update(Project)
+            .where(Project.id == project.id)
+            .values(owner_id=new_owner_id)
+            .execution_options(synchronize_session=False)
+        )
 
-        with pytest.raises(DetachedEntityError):
-            await repo.delete(project)
+        assert await repo.delete_entity(project.id, original_owner_id) is None
+
+        await db_roundtrip()
+        assert await repo.get_by_id(project.id, new_owner_id) is not None
 
     async def test_add_project_success(self, session, user, db_roundtrip):
         repo = ProjectRepo(session)

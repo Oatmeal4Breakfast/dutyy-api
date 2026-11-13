@@ -230,3 +230,11 @@ class ProjectService:
     async def list_projects(self, owner_id: UUID) -> list[Project]:
         async with self._uow_factory() as uow:
             return await uow.project.get_by_owner_id(owner_id=owner_id)
+
+    async def delete_project_by_id(
+        self, project_id: UUID, owner_id: UUID
+    ) -> UUID | None:
+        async with self._uow_factory() as uow:
+            deleted_id = await uow.project.delete_entity(project_id, owner_id)
+            await uow.commit()
+            return deleted_id

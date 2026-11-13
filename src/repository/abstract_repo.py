@@ -46,10 +46,6 @@ class AbstractRepository[T, F = T](ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def delete_entity(self, entity: T) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
     async def add(self, entity: T) -> None:
         raise NotImplementedError
 

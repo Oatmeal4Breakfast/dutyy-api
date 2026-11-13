@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from sqlalchemy import insert, select, remove
+from sqlalchemy import insert, select, delete
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import selectinload
 
@@ -53,18 +53,20 @@ class ProjectRepo(AbstractRepository[Project]):
 
         return list(projects)
 
-    async def delete_entity(self, entity: Project) -> None:
-        assert_managed(self._session, entity)
-
+    async def delete_entity(self, project_id: UUID, owner_id: UUID) -> UUID | None:
+        stmt = (
+            delete(Project)
+            .where(Project.id == project_id, Project.owner_id == owner_id)
+            .returning(Project.id)
+        )
         try:
-            await self._session.delete(entity)
-            await self._session.flush()
-            self.seen.add(entity)
+            result = await self._session.execute(stmt)
+            return result.scalar_one_or_none()
         except IntegrityError:
             logger.error(
                 event=RepoError.INTEGRITY_CONFLICT,
                 op=Operation.DELETE,
-                project_id=entity.id,
+                project_id=str(project_id),
             )
             raise
         except OperationalError:

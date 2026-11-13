@@ -208,6 +208,18 @@ async def delete_dutyy(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    ctx: AuthCtxDep,
+    service: ProjectServiceDep,
+    project_id: UUID,
+    _: OriginDep,
+    __: CSRFDep,
+):
+    await service.delete_project_by_id(project_id=project_id, owner_id=ctx.user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.patch("/dutyys/{dutyy_id}", response_model=DutyyResponse)
 async def patch_dutyy(
     dutyy_id: UUID,
