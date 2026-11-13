@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from sqlalchemy import insert, select, delete
+from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import selectinload
 
