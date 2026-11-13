@@ -59,7 +59,7 @@ class UserRepo(AbstractRepository[User, UserSummary]):
         rows: Sequence[RowMapping] = results.mappings().all()
         return [UserSummary(**row) for row in rows]
 
-    async def delete(self, entity: User) -> None:
+    async def delete_entity(self, entity: User) -> None:
         self.seen.add(entity)
         assert_managed(self._session, entity)
 
