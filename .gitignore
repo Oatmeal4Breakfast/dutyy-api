@@ -17,3 +17,4 @@ wheels/
 
 #sql queries
 sql/
+.DS_Store
