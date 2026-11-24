@@ -12,7 +12,7 @@ from src.api.deps import (
 )
 from src.config import WebSessionConfig
 from src.domain.dutyy import DutyyStatus
-from src.domain.project import ProjectStatus, PublishingStatus
+from src.domain.project import ProjectStatus
 from src.main import create_app
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
@@ -77,8 +77,9 @@ class TestProjectRouter:
         body = response.json()
         assert body["name"] == "new project"
         assert body["owner_id"] == str(user.id)
-        assert body["publishing_status"] == PublishingStatus.DRAFT
         assert body["dutyys"] == []
+        assert "publishing_status" not in body
+        assert "published_date" not in body
 
     async def test_create_project_includes_dutyys(self, client, as_user):
         response = await client.post(
@@ -135,39 +136,6 @@ class TestProjectRouter:
         body = response.json()
         assert body["name"] == "updated project"
         assert body["status"] == ProjectStatus.IN_PROGRESS
-
-    async def test_publish_project_returns_empty_204(
-        self, client, as_user, project, project_service, db_roundtrip, session
-    ):
-        await project_service.add_dutyy(
-            dutyy_title="Publish Me",
-            project_id=project.id,
-            owner_id=project.owner_id,
-        )
-
-        response = await client.post(f"{self._PROJECTS_URL}/{project.id}/publish")
-
-        assert response.status_code == 204
-        assert response.content == b""
-        await db_roundtrip()
-        persisted = await ProjectRepo(session).get_by_id(project.id, project.owner_id)
-        assert persisted is not None
-        assert persisted.publishing_status == PublishingStatus.PUBLISHED
-
-    async def test_unpublish_project_returns_updated_project(
-        self, client, as_user, project, project_service
-    ):
-        await project_service.add_dutyy(
-            dutyy_title="Publish Me",
-            project_id=project.id,
-            owner_id=project.owner_id,
-        )
-        await project_service.publish_project(project.id, project.owner_id)
-
-        response = await client.post(f"{self._PROJECTS_URL}/{project.id}/unpublish")
-
-        assert response.status_code == 200
-        assert response.json()["publishing_status"] == PublishingStatus.DRAFT
 
     async def test_add_dutyy_returns_201(self, client, as_user, project):
         response = await client.post(
@@ -381,20 +349,8 @@ class TestProjectRouter:
             "detail": f"Dutyy with id {dutyy_id} is not assigned to project"
         }
 
-    async def test_add_dutyy_to_published_project_returns_422(
-        self, client, as_user, project, project_service
-    ):
-        await project_service.add_dutyy(
-            dutyy_title="Existing",
-            project_id=project.id,
-            owner_id=project.owner_id,
-        )
-        await project_service.publish_project(project.id, project.owner_id)
+    def test_publish_routes_are_removed_from_openapi(self, app):
+        paths = app.openapi()["paths"]
 
-        response = await client.post(
-            f"{self._PROJECTS_URL}/{project.id}/dutyys",
-            json={"title": "Rejected"},
-        )
-
-        assert response.status_code == 422
-        assert response.json() == {"detail": ["project_not_in_draft_mode"]}
+        assert f"{self._PROJECTS_URL}/{{project_id}}/publish" not in paths
+        assert f"{self._PROJECTS_URL}/{{project_id}}/unpublish" not in paths

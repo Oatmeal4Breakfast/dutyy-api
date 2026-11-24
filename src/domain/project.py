@@ -13,18 +13,12 @@ from src.domain.events import (
     DutyyRemoved,
     OwnershipTransferred,
     ProjectCompleted,
-    ProjectPublished,
 )
 from src.domain.exceptions import (
     DomainValidationError,
     DutyyAssignedError,
     DutyyNotAssignedError,
 )
-
-
-class PublishingStatus(StrEnum):
-    DRAFT = auto()
-    PUBLISHED = auto()
 
 
 class ProjectStatus(StrEnum):
@@ -45,9 +39,6 @@ class Project(Base):
     completed_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
-    published_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, default=None
-    )
     events: list = field(default_factory=list, init=False, repr=False)
     status: Mapped[ProjectStatus] = mapped_column(
         Enum(ProjectStatus, name="projectstatus"),
@@ -64,11 +55,6 @@ class Project(Base):
         DateTime(timezone=True),
         nullable=False,
         default_factory=lambda: datetime.now(UTC),
-    )
-    publishing_status: Mapped[PublishingStatus] = mapped_column(
-        Enum(PublishingStatus, name="publishingstatus"),
-        nullable=False,
-        default=PublishingStatus.DRAFT,
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default_factory=uuid7)
 
@@ -126,32 +112,7 @@ class Project(Base):
                     "Project", [f"{status} is not a valid transition"]
                 )
 
-    def publish(self) -> None:
-        if self.publishing_status == PublishingStatus.PUBLISHED:
-            return
-
-        if len(self.dutyys) <= 0:
-            raise DomainValidationError("Project", ["project_has_no_dutyys"])
-        self.publishing_status = PublishingStatus.PUBLISHED
-        self.published_date: datetime = self._touch()
-        self.events.append(
-            ProjectPublished(
-                project_id=self.id,
-                name=self.name,
-                published_date=self.published_date,
-                owner_id=self.owner_id,
-            )
-        )
-
-    def unpublish(self) -> None:
-        if self.publishing_status == PublishingStatus.DRAFT:
-            return
-        self.publishing_status = PublishingStatus.DRAFT
-        self._touch()
-
     def add_dutyy(self, dutyy: Dutyy) -> None:
-        if self.publishing_status != PublishingStatus.DRAFT:
-            raise DomainValidationError("Project", ["project_not_in_draft_mode"])
         for d in self.dutyys:
             if d.id == dutyy.id:
                 raise DutyyAssignedError(id=dutyy.id)

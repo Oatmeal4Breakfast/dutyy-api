@@ -12,7 +12,7 @@ from src.api.deps import (
     require_csrf_token,
 )
 from src.domain.dutyy import Dutyy, DutyyStatus
-from src.domain.project import Project, ProjectStatus, PublishingStatus
+from src.domain.project import Project, ProjectStatus
 from src.service.auth_service import AuthContext
 from src.service.project_service import (
     CreateDutyyCommand,
@@ -71,10 +71,8 @@ class ProjectResponse(BaseModel):
     name: str
     owner_id: UUID
     status: ProjectStatus
-    publishing_status: PublishingStatus
     created_date: datetime
     modified_date: datetime | None
-    published_date: datetime | None
     completed_date: datetime | None
     dutyys: list[DutyyResponse]
 
@@ -97,7 +95,7 @@ async def create_project(
     _: OriginDep,
     __: CSRFDep,
 ):
-    project: Project = await service.create_project_draft(
+    project: Project = await service.create_project(
         project_name=payload.name,
         owner_id=ctx.user.id,
         dutyys=[
@@ -140,31 +138,6 @@ async def patch_project(
     )
 
     return ProjectResponse.model_validate(project)
-
-
-@router.post("/projects/{project_id}/publish", status_code=status.HTTP_204_NO_CONTENT)
-async def publish_project(
-    project_id: UUID,
-    ctx: AuthCtxDep,
-    service: ProjectServiceDep,
-    _: OriginDep,
-    __: CSRFDep,
-):
-    await service.publish_project(project_id=project_id, owner_id=ctx.user.id)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post("/projects/{project_id}/unpublish", response_model=ProjectResponse)
-async def unpublish_project(
-    project_id: UUID,
-    ctx: AuthCtxDep,
-    service: ProjectServiceDep,
-    _: OriginDep,
-    __: CSRFDep,
-):
-    return ProjectResponse.model_validate(
-        await service.unpublish_project(project_id=project_id, owner_id=ctx.user.id)
-    )
 
 
 @router.post(

@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import select, update
 
 from src.db.orm import project_user_table
-from src.domain.project import Project, ProjectStatus, PublishingStatus
+from src.domain.project import Project, ProjectStatus
 from src.repository.abstract_repo import DetachedEntityError
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
@@ -286,66 +286,6 @@ class TestProjectRepo:
 
         assert isinstance(results, list)
         assert len(results) == 0
-
-    async def test_add_project_persists_draft_defaults(
-        self, session, user, db_roundtrip
-    ):
-        repo = ProjectRepo(session)
-
-        project = make_project(user.id)
-        await repo.add(project)
-
-        await db_roundtrip()
-        result: Project | None = await repo.get_by_id(project.id, user.id)
-
-        assert result is not None
-        assert result.publishing_status == PublishingStatus.DRAFT
-        assert result.published_date is None
-
-    async def test_update_project_publishes(
-        self, session, project, dutyy, db_roundtrip
-    ):
-        await db_roundtrip()
-        repo = ProjectRepo(session)
-        loaded = await repo.get_by_id(project.id, project.owner_id)
-        assert loaded is not None
-
-        assert loaded.publishing_status == PublishingStatus.DRAFT
-
-        loaded.publish()
-
-        await repo.update(loaded)
-
-        published_date = loaded.published_date
-
-        await db_roundtrip()
-        result: Project | None = await repo.get_by_id(project.id, project.owner_id)
-
-        assert result is not None
-        assert result.publishing_status == PublishingStatus.PUBLISHED
-        assert result.published_date == published_date
-
-    async def test_update_project_unpublish_retains_date(
-        self, session, project, dutyy, db_roundtrip
-    ):
-        await db_roundtrip()
-        repo = ProjectRepo(session)
-        loaded = await repo.get_by_id(project.id, project.owner_id)
-        assert loaded is not None
-
-        loaded.publish()
-        await repo.update(loaded)
-        published_date = loaded.published_date
-
-        loaded.unpublish()
-        await repo.update(loaded)
-
-        await db_roundtrip()
-        result: Project | None = await repo.get_by_id(project.id, project.owner_id)
-
-        assert result is not None
-        assert result.publishing_status == PublishingStatus.DRAFT
-        assert result.published_date == published_date
 
     async def test_search_by_name_owner_isolation(self, session, project, user):
         from src.repository.user_repo import UserRepo
