@@ -30,6 +30,11 @@ class APIService:
         raw, key = APIKey.issue(user_id, name=key_name, ttl=ttl)
 
         async with self._uow_factory() as uow:
+            await uow.api.mark_expired_for_user(
+                user_id=user_id,
+                key_name=key.name,
+                now=datetime.now(UTC),
+            )
             await uow.api.add(key)
             await uow.commit()
             logger.info(
@@ -43,11 +48,16 @@ class APIService:
         async with self._uow_factory() as uow:
             key: APIKey | None = await uow.api.get_by_hash(hash=hash)
 
-            if (
-                key is None
-                or key.status != APIKeyStatus.ACTIVE
-                or (key.expires_at is None or datetime.now(UTC) > key.expires_at)
-            ):
+            if key is None or key.status != APIKeyStatus.ACTIVE:
+                return None
+
+            now = datetime.now(UTC)
+            if key.expires_at is None:
+                return None
+
+            if key.is_expired(now):
+                await uow.api.mark_expired(api_key_id=key.id, user_id=key.user_id)
+                await uow.commit()
                 return None
 
             if key.touch():
@@ -65,15 +75,25 @@ class APIService:
             if key is None:
                 return None
 
-            key.mark_inactive()
-
-            await uow.api.update(key)
+            if key.status == APIKeyStatus.ACTIVE and key.is_expired():
+                await uow.api.mark_expired(
+                    api_key_id=key.id,
+                    user_id=user_id,
+                )
+            elif key.status == APIKeyStatus.ACTIVE:
+                key.mark_inactive()
+                await uow.api.update(key)
             await uow.commit()
 
         logger.info(event="api_key_revoked", key_id=str(key_id), user_id=str(user_id))
 
     async def get_keys_by_user_id(self, user_id: UUID) -> list[APIKeySummary]:
         async with self._uow_factory() as uow:
+            expired_count = await uow.api.mark_expired_for_user(
+                user_id=user_id, now=datetime.now(UTC)
+            )
             keys: list[APIKeySummary] = await uow.api.get_by_user_id(user_id=user_id)
+            if expired_count:
+                await uow.commit()
             logger.info(event="retrieved_keys", count=len(keys), user_id=str(user_id))
             return keys

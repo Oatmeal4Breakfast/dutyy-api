@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
@@ -48,6 +50,63 @@ class TestAPIRepo:
 
         assert len(results) == 1
         assert results[0].status == APIKeyStatus.INACTIVE
+
+    async def test_mark_expired_updates_elapsed_active_key(
+        self, session, user, db_roundtrip
+    ):
+        repo = APIRepo(session)
+        now = datetime.now(UTC)
+        key = make_api_key(
+            user.id,
+            expires_at=now - timedelta(seconds=1),
+        )
+        await repo.add(key)
+
+        result = await repo.mark_expired(key.id, user.id)
+        await db_roundtrip()
+        persisted = await repo.get_by_id(key.id, user.id)
+
+        assert result is not None
+        assert persisted is not None
+        assert persisted.status == APIKeyStatus.EXPIRED
+
+    async def test_mark_expired_ignores_key_that_has_not_elapsed(self, session, user):
+        repo = APIRepo(session)
+        now = datetime.now(UTC)
+        key = make_api_key(
+            user.id,
+            expires_at=now + timedelta(days=1),
+        )
+        await repo.add(key)
+
+        result = await repo.mark_expired(key.id, user.id)
+
+        assert result is None
+        assert key.status == APIKeyStatus.ACTIVE
+
+    async def test_mark_expired_for_user_can_filter_by_name(self, session, user):
+        repo = APIRepo(session)
+        now = datetime.now(UTC)
+        matching = make_api_key(
+            user.id,
+            name="matching",
+            key_hash="matching_hash",
+            expires_at=now - timedelta(seconds=1),
+        )
+        other = make_api_key(
+            user.id,
+            name="other",
+            key_hash="other_hash",
+            expires_at=now - timedelta(seconds=1),
+        )
+        await repo.add(matching)
+        await repo.add(other)
+
+        count = await repo.mark_expired_for_user(user.id, now, key_name=matching.name)
+
+        assert count == 1
+        assert matching.status == APIKeyStatus.EXPIRED
+        assert other.status == APIKeyStatus.ACTIVE
 
     async def test_get_api_key_by_hash_success(self, session, api_key, db_roundtrip):
         repo = APIRepo(session)

@@ -89,12 +89,15 @@ class TestAPIService:
         service: APIService = make_api_service(session, event_bus)
 
         raw, key = APIKey.issue(
-            user_id=user.id, name="test_key", ttl=timedelta(microseconds=1)
+            user_id=user.id, name="test_key", ttl=-timedelta(seconds=1)
         )
 
         await repo.add(key)
 
         assert await service.verify(raw) is None
+        persisted = await repo.get_by_id(key.id, user.id)
+        assert persisted is not None
+        assert persisted.status == APIKeyStatus.EXPIRED
 
     async def test_revoke_success(self, user, session, event_bus):
         repo = APIRepo(session)
@@ -114,6 +117,45 @@ class TestAPIService:
 
         assert persisted is not None
         assert persisted.status == APIKeyStatus.INACTIVE
+
+    async def test_revoke_marks_elapsed_key_expired(self, user, session, event_bus):
+        repo = APIRepo(session)
+        service = make_api_service(session, event_bus)
+        _, key = APIKey.issue(
+            user_id=user.id,
+            name="expired_key",
+            ttl=-timedelta(seconds=1),
+        )
+        await repo.add(key)
+
+        await service.revoke(user_id=user.id, key_id=key.id)
+
+        persisted = await repo.get_by_id(key.id, user.id)
+        assert persisted is not None
+        assert persisted.status == APIKeyStatus.EXPIRED
+
+    async def test_issue_allows_reusing_name_of_elapsed_key(
+        self, user, session, event_bus
+    ):
+        repo = APIRepo(session)
+        service = make_api_service(session, event_bus)
+        _, expired = APIKey.issue(
+            user_id=user.id,
+            name="reusable",
+            ttl=-timedelta(seconds=1),
+        )
+        await repo.add(expired)
+
+        raw = await service.issue_new_key(
+            user_id=user.id,
+            key_name="reusable",
+            ttl=timedelta(days=7),
+        )
+
+        replacement = await repo.get_by_hash(APIKey.hash_key(raw))
+        assert expired.status == APIKeyStatus.EXPIRED
+        assert replacement is not None
+        assert replacement.status == APIKeyStatus.ACTIVE
 
     async def test_revoke_no_key_found_is_noop(self, user, session, event_bus):
         repo = APIRepo(session)
@@ -161,3 +203,17 @@ class TestAPIService:
         assert len(test_results) > 0
         assert isinstance(test_results, list)
         assert isinstance(test_results[0], APIKeySummary)
+
+    async def test_get_keys_marks_elapsed_keys_expired(self, session, event_bus, user):
+        repo = APIRepo(session)
+        service = make_api_service(session, event_bus)
+        _, key = APIKey.issue(
+            user_id=user.id,
+            name="expired_key",
+            ttl=-timedelta(seconds=1),
+        )
+        await repo.add(key)
+
+        results = await service.get_keys_by_user_id(user.id)
+
+        assert results[0].status == APIKeyStatus.EXPIRED

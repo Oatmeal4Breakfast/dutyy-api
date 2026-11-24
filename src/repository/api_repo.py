@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
-from src.domain.api import APIKey, APIKeySummary
+from src.domain.api import APIKey, APIKeyStatus, APIKeySummary
 from src.logger import get_logger
 from src.repository.abstract_repo import Operation, RepoError, assert_managed
 
@@ -84,6 +85,57 @@ class APIRepo:
             raise
 
         return result.scalars().one_or_none()
+
+    async def mark_expired(self, api_key_id: UUID, user_id: UUID) -> APIKey | None:
+        stmt: Select[tuple[APIKey]] = (
+            select(APIKey)
+            .where(
+                APIKey.id == api_key_id,
+                APIKey.user_id == user_id,
+            )
+            .with_for_update()
+        )
+
+        try:
+            results: Result[tuple[APIKey]] = await self._session.execute(stmt)
+            key: APIKey | None = results.scalars().one_or_none()
+
+            if key is None:
+                return None
+            if key.status != APIKeyStatus.ACTIVE or not key.is_expired():
+                return None
+            key.mark_expired()
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+        return key
+
+    async def mark_expired_for_user(
+        self, user_id: UUID, now: datetime, key_name: str | None = None
+    ) -> int:
+        stmt: Select[tuple[APIKey]] = (
+            select(APIKey)
+            .where(
+                APIKey.user_id == user_id,
+                APIKey.status == APIKeyStatus.ACTIVE,
+                APIKey.expires_at.is_not(None),
+                APIKey.expires_at <= now,
+            )
+            .with_for_update()
+        )
+        if key_name is not None:
+            stmt = stmt.where(APIKey.name == key_name)
+
+        try:
+            result: Result[tuple[APIKey]] = await self._session.execute(stmt)
+            keys: Sequence[APIKey] = result.scalars().all()
+            for key in keys:
+                key.mark_expired()
+        except OperationalError:
+            logger.error(event=RepoError.DB_UNAVAILABLE, op=Operation.GET)
+            raise
+
+        return len(keys)
 
     async def get_by_id(self, key_id: UUID, owner_id: UUID) -> APIKey | None:
         stmt: Select[tuple[APIKey]] = select(APIKey).where(
