@@ -54,7 +54,7 @@ class ProjectService:
     ) -> None:
         self._uow_factory: Callable = uow_factory
 
-    async def create_project_draft(
+    async def create_project(
         self,
         project_name: str,
         owner_id: UUID,
@@ -79,22 +79,6 @@ class ProjectService:
                 owner_id=str(owner_id),
             )
         return project
-
-    async def publish_project(self, project_id: UUID, owner_id: UUID) -> None:
-        async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id(
-                project_id=project_id, owner_id=owner_id
-            )
-
-            if project is None:
-                logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFoundError(project_id)
-
-            project.publish()
-
-            await uow.project.update(project)
-            await uow.commit()
-            return
 
     async def add_dutyy(
         self,
@@ -193,23 +177,6 @@ class ProjectService:
 
             if updates.status is not None:
                 project.update_status(updates.status)
-
-            await uow.project.update(project)
-            await uow.commit()
-
-            return project
-
-    async def unpublish_project(self, project_id: UUID, owner_id: UUID) -> Project:
-        async with self._uow_factory() as uow:
-            project: Project | None = await uow.project.get_by_id(
-                project_id=project_id, owner_id=owner_id
-            )
-
-            if project is None:
-                logger.warning(event="project_not_found", project_id=str(project_id))
-                raise ProjectNotFoundError(project_id)
-
-            project.unpublish()
 
             await uow.project.update(project)
             await uow.commit()

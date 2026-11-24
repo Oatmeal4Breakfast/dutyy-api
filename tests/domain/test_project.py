@@ -5,18 +5,13 @@ from uuid import UUID, uuid7
 import pytest
 
 from src.domain.dutyy import Dutyy
-from src.domain.events import (
-    DutyyAdded,
-    DutyyRemoved,
-    ProjectCompleted,
-    ProjectPublished,
-)
+from src.domain.events import DutyyAdded, DutyyRemoved, ProjectCompleted
 from src.domain.exceptions import (
     DomainValidationError,
     DutyyAssignedError,
     DutyyNotAssignedError,
 )
-from src.domain.project import Project, ProjectStatus, PublishingStatus
+from src.domain.project import Project, ProjectStatus
 
 owner_id = uuid7()
 
@@ -32,13 +27,6 @@ def make_dutyy(**kwargs) -> Dutyy:
         "project_id": UUID("12345678-1234-5678-1234-567812345678"),
     }
     return Dutyy(**{**defaults, **kwargs})
-
-
-def make_publishable_project() -> Project:
-    project = make_project()
-    project.add_dutyy(make_dutyy(project_id=project.id))
-    project.events.clear()
-    return project
 
 
 def test_create_project_success() -> None:
@@ -221,115 +209,6 @@ def test_update_status_complete_not_reversible() -> None:
 
     with pytest.raises(DomainValidationError):
         project.update_status(ProjectStatus.NEW)
-
-
-def test_add_dutyy_to_published_project_fails() -> None:
-    project = make_project()
-    default_dutyy = make_dutyy()
-
-    project.add_dutyy(default_dutyy)
-    project.publish()
-
-    dutyy_2 = make_dutyy(
-        title="second_dutyy",
-        project_id=UUID("12345678-1234-5678-1234-567812345679"),
-    )
-    with pytest.raises(DomainValidationError):
-        project.add_dutyy(dutyy=dutyy_2)
-
-
-def test_new_project_defaults_to_draft() -> None:
-    project = make_project()
-
-    assert project.publishing_status == PublishingStatus.DRAFT
-    assert project.published_date is None
-
-
-def test_publish_success() -> None:
-    project = make_publishable_project()
-
-    project.publish()
-
-    assert project.publishing_status == PublishingStatus.PUBLISHED
-    assert project.published_date is not None
-
-    time_diff = datetime.now(UTC) - project.published_date
-    assert time_diff < timedelta(seconds=1)
-
-    # publish reuses _touch(), so the two timestamps are the same instant
-    assert project.published_date == project.modified_date
-
-
-def test_publish_appends_event() -> None:
-    project = make_publishable_project()
-
-    project.publish()
-
-    assert len(project.events) == 1
-    event = project.events[0]
-    assert isinstance(event, ProjectPublished)
-    assert event.project_id == project.id
-    assert event.name == project.name
-    assert event.owner_id == project.owner_id
-    assert event.published_date == project.published_date
-
-
-def test_publish_idempotent() -> None:
-    project = make_publishable_project()
-
-    project.publish()
-    first_published_date = project.published_date
-
-    project.publish()
-
-    assert len(project.events) == 1
-    assert project.published_date == first_published_date
-
-
-def test_unpublish_success() -> None:
-    project = make_publishable_project()
-    project.publish()
-
-    project.unpublish()
-
-    assert project.publishing_status == PublishingStatus.DRAFT
-    assert project.modified_date is not None
-
-    time_diff = datetime.now(UTC) - project.modified_date
-    assert time_diff < timedelta(seconds=1)
-
-
-def test_unpublish_retains_published_date() -> None:
-    # Intentional: unpublishing moves status back to DRAFT but keeps
-    # published_date as a historical "last published at" marker.
-    project = make_publishable_project()
-    project.publish()
-    published_date = project.published_date
-
-    project.unpublish()
-
-    assert project.publishing_status == PublishingStatus.DRAFT
-    assert project.published_date == published_date
-
-
-def test_unpublish_idempotent_on_draft() -> None:
-    project = make_project()
-
-    project.unpublish()
-
-    assert project.publishing_status == PublishingStatus.DRAFT
-    assert project.modified_date is None
-    assert len(project.events) == 0
-
-
-def test_publish_is_orthogonal_to_status() -> None:
-    project = make_publishable_project()
-
-    project.update_status(ProjectStatus.COMPLETE)
-    project.publish()
-
-    assert project.status == ProjectStatus.COMPLETE
-    assert project.publishing_status == PublishingStatus.PUBLISHED
 
 
 def test_delete_dutyy_specific_when_multiple_exist() -> None:

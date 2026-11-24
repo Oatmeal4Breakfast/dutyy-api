@@ -9,10 +9,9 @@ from src.domain.events import (
     DutyyCompleted,
     DutyyRemoved,
     ProjectCompleted,
-    ProjectPublished,
 )
 from src.domain.exceptions import DomainValidationError, DutyyNotAssignedError
-from src.domain.project import ProjectStatus, PublishingStatus
+from src.domain.project import ProjectStatus
 from src.repository.dutyy_repo import DutyRepo
 from src.repository.project_repo import ProjectRepo
 from src.service.project_service import (
@@ -60,12 +59,12 @@ class TestProjectService:
             is not None
         )
 
-    async def test_create_project_draft_persists_project(
+    async def test_create_project_persists_project(
         self, session, event_bus, user, db_roundtrip
     ):
         service = make_project_service(session, event_bus)
 
-        created = await service.create_project_draft(" New Project ", user.id)
+        created = await service.create_project(" New Project ", user.id)
 
         await db_roundtrip()
         persisted = await ProjectRepo(session).get_by_id(created.id, user.id)
@@ -73,14 +72,13 @@ class TestProjectService:
         assert persisted is not None
         assert persisted.name == "new project"
         assert persisted.owner_id == user.id
-        assert persisted.publishing_status == PublishingStatus.DRAFT
 
-    async def test_create_project_draft_persists_dutyys(
+    async def test_create_project_persists_dutyys(
         self, session, event_bus, user, db_roundtrip
     ):
         service = make_project_service(session, event_bus)
 
-        created = await service.create_project_draft(
+        created = await service.create_project(
             "New Project",
             user.id,
             dutyys=[
@@ -97,39 +95,6 @@ class TestProjectService:
             ("first dutyy", "details", persisted.id),
             ("second dutyy", None, persisted.id),
         ]
-
-    async def test_publish_project_persists_status_and_fires_event(
-        self, session, event_bus, project, dutyy, db_roundtrip
-    ):
-        handler = AsyncMock()
-        event_bus.subscribe(ProjectPublished, handler)
-        await db_roundtrip()
-        service = make_project_service(session, event_bus)
-
-        await service.publish_project(project.id, project.owner_id)
-        await event_bus.drain()
-
-        await db_roundtrip()
-        persisted = await ProjectRepo(session).get_by_id(project.id, project.owner_id)
-        assert persisted is not None
-        assert persisted.publishing_status == PublishingStatus.PUBLISHED
-        assert persisted.published_date is not None
-        handler.assert_awaited_once()
-
-    async def test_publish_project_rejects_project_without_dutyys(
-        self, session, event_bus, project, db_roundtrip
-    ):
-        await db_roundtrip()
-        service = make_project_service(session, event_bus)
-
-        with pytest.raises(DomainValidationError):
-            await service.publish_project(project.id, project.owner_id)
-
-    async def test_publish_project_rejects_unknown_project(self, session, event_bus):
-        service = make_project_service(session, event_bus)
-
-        with pytest.raises(ProjectNotFoundError):
-            await service.publish_project(uuid7(), uuid7())
 
     async def test_add_dutyy_persists_it_and_fires_event(
         self, session, event_bus, project, db_roundtrip
@@ -159,26 +124,6 @@ class TestProjectService:
 
         with pytest.raises(ProjectNotFoundError):
             await service.add_dutyy("New Dutyy", uuid7(), uuid7())
-
-    async def test_add_dutyy_rejects_published_project(
-        self, session, event_bus, project, db_roundtrip
-    ):
-        service = make_project_service(session, event_bus)
-
-        await service.add_dutyy(
-            dutyy_title="old_dutyy", project_id=project.id, owner_id=project.owner_id
-        )
-
-        await service.publish_project(project_id=project.id, owner_id=project.owner_id)
-
-        with pytest.raises(DomainValidationError) as exec_info:
-            await service.add_dutyy(
-                dutyy_title="new_dutyy",
-                project_id=project.id,
-                owner_id=project.owner_id,
-            )
-
-        assert exec_info.value.errors == ["project_not_in_draft_mode"]
 
     async def test_remove_dutyy_deletes_it_and_fires_event(
         self, session, event_bus, project, dutyy, db_roundtrip
@@ -311,28 +256,6 @@ class TestProjectService:
             await service.edit_project(
                 uuid7(), uuid7(), EditProjectCommand(name="Updated")
             )
-
-    async def test_unpublish_project_persists_draft_status(
-        self, session, event_bus, project, dutyy, db_roundtrip
-    ):
-        await db_roundtrip()
-        service = make_project_service(session, event_bus)
-        await service.publish_project(project.id, project.owner_id)
-
-        updated = await service.unpublish_project(project.id, project.owner_id)
-
-        await db_roundtrip()
-        persisted = await ProjectRepo(session).get_by_id(project.id, project.owner_id)
-        assert persisted is not None
-        assert updated.publishing_status == PublishingStatus.DRAFT
-        assert persisted.publishing_status == PublishingStatus.DRAFT
-        assert persisted.published_date is not None
-
-    async def test_unpublish_project_rejects_unknown_project(self, session, event_bus):
-        service = make_project_service(session, event_bus)
-
-        with pytest.raises(ProjectNotFoundError):
-            await service.unpublish_project(uuid7(), uuid7())
 
 
 class TestDeleteProjectTransaction:
