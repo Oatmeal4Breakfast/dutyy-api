@@ -4,7 +4,7 @@ from uuid import uuid7
 
 import pytest
 
-from src.domain.api import APIKey
+from src.domain.api import APIKey, APIKeyStatus
 from src.domain.exceptions import DomainValidationError
 
 _DEFAULT_USER_ID = uuid7()
@@ -76,8 +76,6 @@ def test_api_key_belongs_to_user() -> None:
 
 
 def test_mark_inactive_changes_status() -> None:
-    from src.domain.api import APIKeyStatus
-
     api_key = make_api_key()
 
     assert api_key.status == APIKeyStatus.ACTIVE
@@ -85,6 +83,25 @@ def test_mark_inactive_changes_status() -> None:
     api_key.mark_inactive()
 
     assert api_key.status == APIKeyStatus.INACTIVE
+
+
+def test_is_expired_when_expiry_has_elapsed() -> None:
+    now = datetime.now(UTC)
+    api_key = make_api_key(expires_at=now - timedelta(seconds=1))
+
+    assert api_key.is_expired(now) is True
+
+
+def test_is_not_expired_without_expiry() -> None:
+    assert make_api_key().is_expired() is False
+
+
+def test_mark_expired_changes_status() -> None:
+    api_key = make_api_key()
+
+    api_key.mark_expired()
+
+    assert api_key.status == APIKeyStatus.EXPIRED
 
 
 def test_issue_success() -> None:

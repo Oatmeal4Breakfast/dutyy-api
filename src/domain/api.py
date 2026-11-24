@@ -15,6 +15,7 @@ from src.domain.exceptions import DomainValidationError
 class APIKeyStatus(StrEnum):
     ACTIVE = auto()
     INACTIVE = auto()
+    EXPIRED = auto()
 
 
 @dataclass(frozen=True)
@@ -86,8 +87,16 @@ class APIKey(Base):
         self.last_used = now
         return True
 
+    def is_expired(self, now: datetime | None = None) -> bool:
+        if self.expires_at is None:
+            return False
+        return self.expires_at <= (now or datetime.now(UTC))
+
     def mark_inactive(self) -> None:
         self.status = APIKeyStatus.INACTIVE
+
+    def mark_expired(self) -> None:
+        self.status = APIKeyStatus.EXPIRED
 
     def __hash__(self):
         return hash(self.id)

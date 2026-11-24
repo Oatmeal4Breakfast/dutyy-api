@@ -124,6 +124,28 @@ class TestApiKeyRouter:
 
         assert resp.status_code == 409
 
+    async def test_issue_reuses_name_after_existing_key_expires(
+        self, client, as_user, session, event_bus, user
+    ):
+        service = make_api_service(session, event_bus)
+        await service.issue_new_key(
+            user_id=user.id,
+            key_name="reusable",
+            ttl=-timedelta(seconds=1),
+        )
+
+        resp = await client.post(
+            url=self._API_URL,
+            json={"key_name": "reusable", "ttl": "7d"},
+        )
+
+        assert resp.status_code == 201
+        keys = await service.get_keys_by_user_id(user.id)
+        assert {key.status for key in keys} == {
+            APIKeyStatus.ACTIVE,
+            APIKeyStatus.EXPIRED,
+        }
+
     async def test_issue_key_requires_auth(self, client):
         resp = await client.post(
             url=self._API_URL, json={"key_name": "cli_test", "ttl": "7d"}
