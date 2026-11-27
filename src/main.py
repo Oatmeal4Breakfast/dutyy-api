@@ -28,6 +28,7 @@ from src.domain.exceptions import (
     UserAlreadyExistsError,
 )
 from src.logger import config_logger
+from src.monitoring import configure_sentry
 from src.service.api_service import APIService
 from src.service.auth_service import AuthService
 from src.service.device_auth_service import DeviceAuthService
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
         EmailServiceConfig,
         WebSessionConfig,
     )
+
+configure_sentry()
 
 
 async def lifespan(app: FastAPI):
