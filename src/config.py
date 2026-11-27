@@ -38,6 +38,20 @@ class Config(BaseSettings):
         return f"postgresql+psycopg://{self.postgres_user}:{quote_plus(self.postgres_password)}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
 
+class SentryConfig(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=False, env_file_encoding="utf-8", extra="ignore"
+    )
+
+    env: ENV = Field(default=ENV.DEVELOPMENT)
+    sentry_dsn: str | None = Field(default=None)
+    sentry_release: str | None = Field(default=None)
+
+    @property
+    def traces_sample_rate(self) -> float:
+        return 1.0 if self.env == ENV.DEVELOPMENT else 0.1
+
+
 class AuthServiceConfig(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -94,6 +108,11 @@ class WebSessionConfig(BaseSettings):
 @lru_cache
 def get_config() -> Config:
     return Config()
+
+
+@lru_cache
+def get_sentry_config() -> SentryConfig:
+    return SentryConfig()
 
 
 @lru_cache
